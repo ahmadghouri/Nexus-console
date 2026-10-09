@@ -109,7 +109,33 @@ pub const REGISTRY: &[Probe] = &[
     browser::AUDIO_BLOCKER,
     browser::STORAGE,
     browser::EXTENSIONS,
+    // The Windows probes live in a `#![cfg(windows)]` module — gated here too,
+    // so a macOS build never sees the registry entries (mac = 14 probes,
+    // Windows = the same 14 + the 12 below).
+    #[cfg(windows)]
     windows::BATTERY_SAVER,
+    #[cfg(windows)]
+    windows::MEMORY_TRUTH,
+    #[cfg(windows)]
+    windows::STARTUP_ITEMS,
+    #[cfg(windows)]
+    windows::LOAD_VS_CORES,
+    #[cfg(windows)]
+    windows::OS_SUPPORT,
+    #[cfg(windows)]
+    windows::REBOOT_PENDING,
+    #[cfg(windows)]
+    windows::DEV_TOOLS,
+    #[cfg(windows)]
+    windows::BATTERY_HEALTH,
+    #[cfg(windows)]
+    windows::UPTIME,
+    #[cfg(windows)]
+    windows::CPU_MODEL,
+    #[cfg(windows)]
+    windows::DISK_HEALTH,
+    #[cfg(windows)]
+    windows::WU_STATUS,
 ];
 
 /// A probe that can't read its source reports that honestly instead of
@@ -144,6 +170,8 @@ mod tests {
 
     // vscode/ollama/browser probes are availability-gated; counts below assume
     // all exist on this machine. Ignored in CI (runner has none installed).
+    // macOS counts — the Windows registry has its own probes, tested there.
+    #[cfg(unix)]
     #[test]
     #[ignore]
     fn registry_filters_by_scope() {
@@ -155,8 +183,9 @@ mod tests {
             Scope::Disk,
             Scope::Startup,
         ];
-        // The Windows stub is registered but filtered on macOS.
-        assert_eq!(REGISTRY.len(), 15);
+        // macOS sees only the 14 cross/mac probes — the 11 Windows entries are
+        // cfg(windows)-gated out of this list.
+        assert_eq!(REGISTRY.len(), 14);
         assert_eq!(probes_for(&all).len(), 14);
         assert_eq!(probes_for(&[Scope::Browser]).len(), 4);
         assert_eq!(probes_for(&[Scope::Vscode]).len(), 3);
@@ -164,6 +193,48 @@ mod tests {
         assert_eq!(probes_for(&[Scope::Disk])[0].id, "disk_free");
         assert_eq!(probes_for(&[Scope::System]).len(), 4);
         assert_eq!(probes_for(&[Scope::System])[0].id, "load_vs_cores");
+        assert_eq!(probes_for(&[Scope::Startup])[0].id, "startup_items");
+        assert!(probes_for(&[]).is_empty());
+    }
+
+    // Windows counts: the same availability assumptions as the macOS test
+    // (vscode/ollama may be absent), so only platform guarantees are asserted.
+    #[cfg(windows)]
+    #[test]
+    fn registry_filters_by_scope() {
+        let all = [
+            Scope::System,
+            Scope::Claude,
+            Scope::Vscode,
+            Scope::Browser,
+            Scope::Disk,
+            Scope::Startup,
+        ];
+        assert_eq!(REGISTRY.len(), 26);
+        let ids: Vec<&str> = probes_for(&all).iter().map(|p| p.id).collect();
+        for want in [
+            "disk_free",
+            "battery_saver",
+            "memory_truth",
+            "startup_items",
+            "load_vs_cores",
+            "os_support",
+            "reboot_pending",
+            "dev_tools",
+            "battery_health",
+            "uptime",
+            "cpu_model",
+            "disk_health",
+            "wu_status",
+        ] {
+            assert!(ids.contains(&want), "{want} missing from {ids:?}");
+        }
+        // macOS-only probes must never surface here.
+        for absent in ["low_power_mode", "backup_risk"] {
+            assert!(!ids.contains(&absent), "{absent} leaked into {ids:?}");
+        }
+        // Startup scope on Windows = the Run-key twin, never the launchctl one.
+        assert_eq!(probes_for(&[Scope::Startup]).len(), 1);
         assert_eq!(probes_for(&[Scope::Startup])[0].id, "startup_items");
         assert!(probes_for(&[]).is_empty());
     }

@@ -45,6 +45,43 @@ pub fn bare_formula(name: &str) -> &str {
     name.rsplit('/').next().unwrap_or(name)
 }
 
+/// A Windows package identifier (winget id, e.g. `Microsoft.VisualStudioCode`
+/// or `Redis.Redis`). Strict on purpose — the id ends up inside a
+/// ShellExecuteW parameter string for elevated operations, so it must never
+/// contain quotes, spaces, or anything path/shell-shaped.
+pub fn validate_package_id(id: &str) -> AppResult<()> {
+    if !id.is_empty()
+        && id.len() <= 200
+        && id
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b'_' | b'+'))
+    {
+        Ok(())
+    } else {
+        Err(AppError::InvalidName(format!("invalid package id: {id}")))
+    }
+}
+
+/// A Windows service key name from the SCM (`Redis`, `MySQL80`,
+/// `postgresql-x64-16`, `Docker Desktop Service`). Spaces allowed (some
+/// services use them), but nothing path/shell-shaped — the name is validated
+/// again before it reaches any elevated operation.
+pub fn validate_service_name(name: &str) -> AppResult<()> {
+    if !name.is_empty()
+        && name.len() <= 256
+        && !name.starts_with(['.', '-', ' '])
+        && name.bytes().all(|b| {
+            b.is_ascii_alphanumeric() || matches!(b, b' ' | b'.' | b'_' | b'-' | b'+' | b'@')
+        })
+    {
+        Ok(())
+    } else {
+        Err(AppError::InvalidName(format!(
+            "invalid service name: {name}"
+        )))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

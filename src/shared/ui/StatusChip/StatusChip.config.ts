@@ -7,5 +7,6 @@ export const STATUS_META: Record<ServiceStatus, { label: string }> = {
   stopping: { label: 'Stopping' },
   stopped: { label: 'Stopped' },
   notInstalled: { label: 'Not installed' },
+  installed: { label: 'Installed' },
   error: { label: 'Error' },
 };

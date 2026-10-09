@@ -105,7 +105,10 @@ export const ServicesPage = () => {
       {/* Persistent action toolbar (service ke andar wala header) — the global
           Start all / Stop all action + Add, always visible above the grid.
           Per-service control lives on each card's own buttons. */}
-      {ctx?.brewVersion && (
+      {/* Gated on the detected package manager, not brew alone — on Windows
+          the context carries wingetVersion instead and this toolbar (Start all
+          / Stop all / Add) must still render. */}
+      {(ctx?.brewVersion || ctx?.wingetVersion) && (
         <div className="flex items-center justify-end gap-2 border-b border-border bg-paper px-6 py-2.5 text-sm">
           {runningServices.length > 0 ? (
             <Button

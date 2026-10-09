@@ -10,9 +10,12 @@ import type { ServiceCardProps } from './ServiceCard.types';
 
 export const ServiceCard = ({ service }: ServiceCardProps) => {
   const Icon = iconFor(service.formula);
+  // A package present in the inventory but owning no service (Windows: Git.Git)
+  // still reads as Installed — the chip can't express that from `status` alone.
+  const chipStatus = !service.serviceInstalled && service.installed ? 'installed' : service.status;
   // Installed (active/stopped) cards de-emphasise the icon + process line so the
   // name + status read first; not-installed cards stay crisp to draw the eye.
-  const dim = service.status !== 'notInstalled';
+  const dim = service.installed;
 
   return (
     <div className={cardStyles}>
@@ -43,13 +46,13 @@ export const ServiceCard = ({ service }: ServiceCardProps) => {
 
         {/* Status */}
         <div className="mt-2.5 flex flex-wrap items-center gap-2">
-          <StatusChip status={service.status} />
-          {service.status !== 'notInstalled' && <LinkChip linkState={service.linkState} />}
+          <StatusChip status={chipStatus} />
+          {service.serviceInstalled && <LinkChip linkState={service.linkState} />}
         </div>
 
         {/* Live metrics — always shown for installed services; a stopped
             service reads 0 (not hidden) so cards stay uniform. */}
-        {service.status !== 'notInstalled' && (
+        {service.serviceInstalled && (
           <div className="mt-2">
             <ServiceStatsInline
               cpu={service.cpu ?? 0}

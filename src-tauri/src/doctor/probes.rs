@@ -5,6 +5,7 @@
 use super::{probe_failed, Finding, Platform, Probe, Scope, Severity, Tag};
 
 const UNIX: &[Platform] = &[Platform::MacOs];
+const ALL: &[Platform] = &[Platform::MacOs, Platform::Windows];
 
 fn always() -> bool {
     true
@@ -13,7 +14,7 @@ fn always() -> bool {
 pub const DISK_FREE: Probe = Probe {
     id: "disk_free",
     scope: Scope::Disk,
-    platforms: UNIX,
+    platforms: ALL,
     available: always,
     run: run_disk_free,
 };
@@ -53,10 +54,11 @@ fn run_disk_free() -> Vec<Finding> {
     };
     let severity = classify_disk(free);
     let gb = free as f64 / GB;
+    let root = if cfg!(windows) { "C:" } else { "/" };
     let explain = match severity {
         Severity::Green => "Plenty of headroom.".to_string(),
         _ => format!(
-            "Below ~{DISK_YELLOW_GB:.0} GB free, macOS starts struggling — swap, caches and \
+            "Below ~{DISK_YELLOW_GB:.0} GB free, the OS starts struggling — swap, caches and \
              updates all need headroom. Deep scan (dev caches, node_modules) is where the \
              reclaimable space usually hides."
         ),
@@ -66,13 +68,14 @@ fn run_disk_free() -> Vec<Finding> {
         scope: DISK_FREE.scope,
         severity,
         tag: Tag::Storage,
-        summary: format!("{gb:.0} GB free on /"),
+        summary: format!("{gb:.0} GB free on {root}"),
         explain,
         guide: None,
         fix: None,
     }]
 }
 
+#[cfg(unix)]
 fn disk_free_bytes() -> Option<u64> {
     let path = std::ffi::CString::new("/").ok()?;
     let mut vfs: libc::statvfs = unsafe { std::mem::zeroed() };
@@ -81,6 +84,11 @@ fn disk_free_bytes() -> Option<u64> {
         return None;
     }
     Some(vfs.f_bavail as u64 * vfs.f_frsize as u64)
+}
+
+#[cfg(windows)]
+fn disk_free_bytes() -> Option<u64> {
+    crate::win::sys::disk_free_bytes(None)
 }
 
 // --- load_vs_cores ----------------------------------------------------------
@@ -127,6 +135,9 @@ fn run_load_vs_cores() -> Vec<Finding> {
 }
 
 /// 5-minute average — the "sustained" signal; 1-minute spikes are noise.
+/// Windows has no getloadavg equivalent; this probe is unix-only (platforms
+/// list), and the stub keeps the module compiling for Windows builds.
+#[cfg(unix)]
 fn load_avg_5min() -> Option<f64> {
     let mut loads = [0f64; 3];
     // SAFETY: fixed-size out array, per getloadavg(3).
@@ -135,6 +146,11 @@ fn load_avg_5min() -> Option<f64> {
     } else {
         None
     }
+}
+
+#[cfg(windows)]
+fn load_avg_5min() -> Option<f64> {
+    None
 }
 
 #[cfg(test)]

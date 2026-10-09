@@ -3,6 +3,7 @@ import { Dialog } from '@/shared/ui/Dialog';
 import { Button } from '@/shared/ui/Button';
 import { Spinner } from '@/shared/ui/Spinner';
 import { useUninstallFormula } from '@/shared/brew';
+import { usePlatform } from '@/shared/tauri';
 import { useDependents } from '@/features/packages/api/useDependents';
 
 /** Uninstall confirm with a dependents check. Reused by Packages + Services. */
@@ -15,6 +16,7 @@ export const UninstallDialog = ({
 }) => {
   const uninstall = useUninstallFormula();
   const dependents = useDependents(name);
+  const windows = usePlatform() === 'windows';
 
   if (!name) return null;
 
@@ -37,7 +39,7 @@ export const UninstallDialog = ({
         if (!o) onClose();
       }}
       title={`Uninstall ${name}?`}
-      description="Runs brew uninstall."
+      description={windows ? 'Runs winget uninstall.' : 'Runs brew uninstall.'}
     >
       {dependents.isPending ? (
         <div className="py-2">
@@ -61,7 +63,9 @@ export const UninstallDialog = ({
           </ul>
         </>
       ) : (
-        <p className="text-sm text-fg-muted">Remove {name} from Homebrew.</p>
+        <p className="text-sm text-fg-muted">
+          {windows ? `Remove ${name} from Windows.` : `Remove ${name} from Homebrew.`}
+        </p>
       )}
 
       <div className="mt-4 flex justify-end gap-2">

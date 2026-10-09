@@ -562,8 +562,24 @@ fn truncate(s: &str, max: usize) -> String {
 /// the filesystem: at each level, the longest existing entry whose encoded
 /// form prefixes the remainder wins.
 fn decode_project_path(dir_name: &str) -> Option<PathBuf> {
-    let rest = dir_name.strip_prefix('-')?;
-    walk_decode(Path::new("/"), rest)
+    #[cfg(unix)]
+    {
+        let rest = dir_name.strip_prefix('-')?;
+        walk_decode(Path::new("/"), rest)
+    }
+    #[cfg(windows)]
+    {
+        // Windows encodes "C:\Users\name\proj" as "C--Users-name-proj" —
+        // drive letter, then every non-alphanumeric as '-'.
+        let mut chars = dir_name.chars();
+        let drive = chars.next()?;
+        if !drive.is_ascii_alphabetic() || chars.next() != Some('-') {
+            return None;
+        }
+        let rest = chars.as_str().strip_prefix('-')?; // "C:" encodes to "C-"
+        let root = PathBuf::from(format!("{drive}:\\"));
+        walk_decode(&root, rest)
+    }
 }
 
 /// Claude's encoding maps EVERY non-alphanumeric char to '-' (spaces, dots,
@@ -916,20 +932,18 @@ mod tests {
 
     #[test]
     fn fallback_display_strips_encoded_home() {
-        let home = std::env::var("HOME").unwrap();
-        let dir = format!("{}-Documents-Foo-Bar", encode_segment(&home));
+        let home = super::super::paths::home().unwrap();
+        let enc = encode_segment(home.to_string_lossy().trim_start_matches(['/', '\\']));
+        let dir = format!("{enc}-Documents-Foo-Bar");
         assert_eq!(fallback_display(&dir), "Documents-Foo-Bar");
         assert_eq!(fallback_display("-Volumes-X-proj"), "Volumes-X-proj");
     }
 
-    // Real-fs decode: HOME itself roundtrips through the encoding.
+    // Real-fs decode: home itself roundtrips through the encoding.
     #[test]
     fn decodes_encoded_home() {
-        let home = std::env::var("HOME").unwrap();
-        let encoded = home.replace(['/', '.'], "-");
-        assert_eq!(
-            decode_project_path(&encoded).unwrap().to_string_lossy(),
-            home
-        );
+        let home = super::super::paths::home().unwrap();
+        let encoded = encode_segment(&home.to_string_lossy());
+        assert_eq!(decode_project_path(&encoded).unwrap(), home);
     }
 }

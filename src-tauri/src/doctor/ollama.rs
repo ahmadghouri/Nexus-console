@@ -13,13 +13,13 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 
-const UNIX: &[Platform] = &[Platform::MacOs];
+const ALL: &[Platform] = &[Platform::MacOs, Platform::Windows];
 const STALE_DAYS: u64 = 90;
 
 pub const OLLAMA_MODELS: Probe = Probe {
     id: "ollama_models",
     scope: Scope::Disk,
-    platforms: UNIX,
+    platforms: ALL,
     available: ollama_available,
     run: run_ollama_models,
 };
@@ -62,6 +62,7 @@ fn blob_atime_epoch(digest: &str) -> u64 {
 
 /// Is any process holding the blob open right now? `lsof -t <file>` is
 /// read-only and file-scoped — it cannot start a daemon (the watchman rule).
+#[cfg(unix)]
 fn blob_in_use(digest: &str) -> bool {
     let Some(path) = blob_path(digest) else {
         return false;
@@ -71,6 +72,24 @@ fn blob_in_use(digest: &str) -> bool {
         .output()
         .map(|o| o.status.success() && !o.stdout.is_empty())
         .unwrap_or(false)
+}
+
+/// Windows twin: an exclusive (non-shared) read open fails with
+/// ERROR_SHARING_VIOLATION (32) exactly while some other handle — ollama
+/// serving the model — has the file open. Read-only, wakes nothing, and
+/// fails closed (a transient AV handle merely defers a delete, never allows
+/// a wrong one).
+#[cfg(windows)]
+fn blob_in_use(digest: &str) -> bool {
+    use std::os::windows::fs::OpenOptionsExt;
+
+    let Some(path) = blob_path(digest) else {
+        return false;
+    };
+    match fs::OpenOptions::new().read(true).share_mode(0).open(&path) {
+        Ok(_) => false,
+        Err(e) => e.raw_os_error() == Some(32),
+    }
 }
 
 /// The weights layer = the largest blob the manifest references.
@@ -314,7 +333,9 @@ pub fn delete_model(model: &str) -> AppResult<String> {
     if !scan_models().iter().any(|m| m.name == model) {
         return Err(AppError::NotFound(format!("no such model: {model}")));
     }
-    let out = std::process::Command::new("ollama")
+    // util::command → CREATE_NO_WINDOW on Windows (no console flash); the
+    // daemon may start on Windows too — that's the same user-click contract.
+    let out = crate::util::command("ollama")
         .args(["rm", model])
         .output()
         .map_err(|e| AppError::Shell(format!("ollama: {e}")))?;

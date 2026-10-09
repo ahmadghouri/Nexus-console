@@ -1,0 +1,29 @@
+﻿Name                                                               Id                                Version         Available      Source
+-------------------------------------------------------------------------------------------------------------------------------------------
+Antigravity 2.0.11                                                 Google.Antigravity                2.0.11          2.21.1         winget
+Antigravity IDE (User)                                             Google.AntigravityIDE             2.1.1           2.5.5          winget
+Docker Desktop                                                     XP8CBJ40XLBWKX                    4.92.0          4.93.0         msstore
+Figma                                                              Figma.Figma                       126.6.9         126.9.13       winget
+Git                                                                Git.Git                           2.51.2          2.55.0.5       winget
+GitHub CLI                                                         GitHub.cli                        2.97.0          2.102.0        winget
+Internet Download Manager                                          Tonec.InternetDownloadManager     6.42.58         6.43.14        winget
+Kiro (User)                                                        Amazon.Kiro                       1.2.4           1.2.37         winget
+Lenovo System Update                                               Lenovo.SystemUpdate               5.08.03.59      5.08.04.85     winget
+LocalSend version 1.17.0                                           LocalSend.LocalSend               1.17.0          1.18.2         winget
+Microsoft Visual C++ 2015-2022 Redistributable (x86) - 14.44.35211 Microsoft.VCRedist.2015+.x86      14.44.35211.0   14.51.36247.0  winget
+Microsoft Windows Desktop Runtime - 8.0.23 (x64)                   Microsoft.DotNet.DesktopRuntime.8 8.0.23          8.0.31         winget
+MongoDB 8.2.1 2008R2Plus SSL (64 bit)                              MongoDB.Server                    8.2.1           9.0.2          winget
+MongoDB Compass                                                    MongoDB.Compass.Full              1.51.0          1.52.0.0       winget
+OpenCode 1.18.23                                                   SST.OpenCodeDesktop               1.18.23         1.18.35        winget
+OpenSSL 3.6.0 Light (64-bit)                                       ShiningLight.OpenSSL.Light        3.6.0           4.0.3          winget
+Outlook for Windows                                                Microsoft.Outlook                 1.2025.1111.100 1.2026.812.100 winget
+Python Launcher                                                    Python.Launcher                   3.12.10         3.14.7         winget
+Requestly 26.2.6                                                   BrowserStackInc.Requestly         26.2.6          26.6.29        winget
+Rustup: the Rust toolchain installer                               Rustlang.Rustup                   1.29.0          1.29.1         winget
+TablePlus 26.7.0                                                   TablePlus.TablePlus               26.7.0          26.10.16       winget
+VLC media player                                                   VideoLAN.VLC                      3.0.23          3.0.24         winget
+Windows Subsystem for Linux                                        Microsoft.WSL                     2.6.1.0         2.7.13         winget
+Windows Terminal                                                   Microsoft.WindowsTerminal         1.24.12741.0    1.25.2733.0    winget
+WinRAR 7.13 (64-bit)                                               RARLab.WinRAR                     7.13.0          7.23.0         winget
+WizTree v4.32                                                      AntibodySoftware.WizTree          4.32            4.33           winget
+26 upgrades available.

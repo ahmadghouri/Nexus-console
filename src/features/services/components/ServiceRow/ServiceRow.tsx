@@ -9,6 +9,8 @@ import type { ReconciledService } from '@/shared/brew';
 export const ServiceRow = ({ service }: { service: ReconciledService }) => {
   const Icon = iconFor(service.formula);
   const isRunning = service.status === 'running' || service.status === 'starting';
+  // Installed-but-serviceless packages (Windows) show "Installed", not "Not installed".
+  const chipStatus = !service.serviceInstalled && service.installed ? 'installed' : service.status;
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border bg-paper px-4 py-2.5 transition-colors hover:bg-list/60">
@@ -24,8 +26,8 @@ export const ServiceRow = ({ service }: { service: ReconciledService }) => {
           {service.port ? ` · :${service.port}` : ''}
         </p>
       </div>
-      <StatusChip status={service.status} />
-      {service.status !== 'notInstalled' && <LinkChip linkState={service.linkState} />}
+      <StatusChip status={chipStatus} />
+      {service.serviceInstalled && <LinkChip linkState={service.linkState} />}
       {isRunning && (
         <div className="hidden shrink-0 xl:block">
           <ServiceStatsInline

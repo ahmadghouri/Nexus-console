@@ -156,6 +156,7 @@ mod tests {
     }
 
     // Read-only proof that run_brew reaches real brew. Ignored in CI.
+    #[cfg(unix)]
     #[test]
     #[ignore]
     fn run_brew_search_works() {

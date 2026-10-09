@@ -8,7 +8,7 @@ import { EmptyState } from '@/shared/ui/EmptyState';
 import { Spinner } from '@/shared/ui/Spinner';
 import { cn } from '@/shared/lib/cn';
 import { formatTime } from '@/shared/lib/format';
-import { ipc, CMD } from '@/shared/tauri';
+import { ipc, CMD, usePlatform } from '@/shared/tauri';
 import { JournalDialog } from '@/features/doctor/components/JournalDialog';
 import { ScanHero } from '@/features/doctor/components/ScanHero';
 import { buildReport } from '@/features/doctor/utils/report';
@@ -64,11 +64,25 @@ const PROBE_LABELS: Record<string, string> = {
   browser_extensions: 'Scanning browser extensions…',
   node_modules_sweep: 'Sweeping node_modules folders…',
   dev_caches: 'Measuring dev caches…',
+  // Windows probes (labels shared with their macOS twins where ids match)
+  battery_saver: 'Checking power settings…',
+  os_support: 'Checking Windows support…',
+  reboot_pending: 'Checking for a pending reboot…',
+  dev_tools: 'Scanning dev tools on PATH…',
+  battery_health: 'Checking battery health…',
+  uptime: 'Reading system uptime…',
+  cpu_model: 'Reading CPU model…',
+  disk_health: 'Checking disk health…',
+  wu_status: 'Checking Windows Update status…',
 };
 
 export const DoctorPage = () => {
   const [tab, setTab] = useState<ScopeTab>('all');
   const [journalOpen, setJournalOpen] = useState(false);
+  // Deep scan's extra sweep is macOS-only (`find`/`du` work), so on Windows the
+  // quick scan already runs everything available and the second button never
+  // renders — never promise a sweep that can't happen.
+  const windows = usePlatform() === 'windows';
   const {
     findings,
     scanning,
@@ -216,14 +230,16 @@ export const DoctorPage = () => {
           ) : (
             !heroState && (
               <>
-                <Button
-                  variant="secondary"
-                  onClick={() => void deepScan()}
-                  title="Slow: the full scan plus node_modules and dev caches"
-                >
-                  <HardDrive className="h-4 w-4" />
-                  Deep scan
-                </Button>
+                {!windows && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => void deepScan()}
+                    title="Slow: the full scan plus node_modules and dev caches"
+                  >
+                    <HardDrive className="h-4 w-4" />
+                    Deep scan
+                  </Button>
+                )}
                 <Button onClick={runScan}>
                   <Stethoscope className="h-4 w-4" />
                   Scan
@@ -338,7 +354,11 @@ export const DoctorPage = () => {
                 <Spinner className="h-8 w-8" />
                 <div className="flex flex-col items-center gap-1 text-center">
                   <h3 className="text-sm font-semibold text-fg">Scanning…</h3>
-                  <p className="text-sm text-fg-muted">Running read-only checks across your Mac.</p>
+                  <p className="text-sm text-fg-muted">
+                    {windows
+                      ? 'Running read-only checks across this machine.'
+                      : 'Running read-only checks across your Mac.'}
+                  </p>
                 </div>
                 <Button variant="dangerOutline" onClick={cancelScan}>
                   <X className="h-4 w-4" />

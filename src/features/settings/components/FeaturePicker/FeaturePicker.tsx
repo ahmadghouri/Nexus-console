@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { MODULES, isModuleAvailable, useClaudeInstalled, type ModuleId } from '@/shared/modules';
+import { usePlatform } from '@/shared/tauri';
 import { cn } from '@/shared/lib/cn';
 import type { FeaturePickerProps } from './FeaturePicker.types';
 
 const MIN_MESSAGE = 'Keep at least one feature on.';
+
+// Windows copies for the one module named after a macOS tool — the registry
+// itself stays platform-neutral, only this surface renames it.
+const WINDOWS_HOMEBREW_BACKGROUND =
+  'Checks WinGet every few seconds and keeps the menu-bar count live.';
 
 /** The module cards — shared by the first-run screen and Settings → Features, so
  * the two surfaces can never drift apart.
@@ -18,6 +24,7 @@ const MIN_MESSAGE = 'Keep at least one feature on.';
  * (the reducer refuses it too — this is the explanation, not the guard). */
 export const FeaturePicker = ({ value, onChange }: FeaturePickerProps) => {
   const claudeInstalled = useClaudeInstalled();
+  const windows = usePlatform() === 'windows';
   const [blocked, setBlocked] = useState(false);
 
   const toggle = (id: ModuleId) => {
@@ -37,10 +44,13 @@ export const FeaturePicker = ({ value, onChange }: FeaturePickerProps) => {
           const available = isModuleAvailable(m.id, { claudeInstalled });
           const checked = value.includes(m.id) && available;
           const Icon = m.icon;
+          const renamed = windows && m.id === 'homebrew';
+          const label = renamed ? 'WinGet' : m.label;
+          const background = renamed ? WINDOWS_HOMEBREW_BACKGROUND : m.background;
           return (
             <label
               key={m.id}
-              aria-label={m.label}
+              aria-label={label}
               className={cn('block', available ? 'cursor-pointer' : 'cursor-not-allowed')}
             >
               <input
@@ -49,7 +59,7 @@ export const FeaturePicker = ({ value, onChange }: FeaturePickerProps) => {
                 checked={checked}
                 disabled={!available}
                 onChange={() => toggle(m.id)}
-                aria-label={m.label}
+                aria-label={label}
               />
               <span
                 className={cn(
@@ -69,7 +79,7 @@ export const FeaturePicker = ({ value, onChange }: FeaturePickerProps) => {
                     <Icon className="h-4 w-4" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-fg">{m.label}</span>
+                    <span className="block text-sm font-semibold text-fg">{label}</span>
                     <span className="block text-xs text-fg-muted">{m.blurb}</span>
                   </span>
                   <span
@@ -85,8 +95,10 @@ export const FeaturePicker = ({ value, onChange }: FeaturePickerProps) => {
 
                 <span className="border-t border-border pt-2.5 text-xs text-fg-subtle">
                   {available
-                    ? (m.background ?? 'Nothing runs in the background.')
-                    : 'Claude Code not found on this Mac.'}
+                    ? (background ?? 'Nothing runs in the background.')
+                    : windows
+                      ? 'Claude Code not found on this machine.'
+                      : 'Claude Code not found on this Mac.'}
                 </span>
               </span>
             </label>

@@ -7,5 +7,5 @@ export { bindFocusManager } from './focus';
 export { showMainWindow } from './window';
 export { openPty, writePty, resizePty, killPty, type PtyEvent, type PtyOpenParams } from './pty';
 export { notifyCrash, setTrayTitle, setTrayServices } from './notify';
-export { useAppContext, appContextQueryKey } from './context';
+export { useAppContext, usePlatform, appContextQueryKey } from './context';
 export { appContextSchema, appErrorSchema, type AppContext } from './schemas';

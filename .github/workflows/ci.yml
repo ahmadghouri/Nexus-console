@@ -7,7 +7,11 @@ on:
 
 jobs:
   frontend:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,9 +24,16 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+        # Building the Windows bundle (msi/nsis) in CI is deliberately out of
+        # scope here — it needs the full Tauri toolchain and is covered by
+        # `npm run release` locally. `vite build` above is the compile gate.
 
   rust:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: src-tauri

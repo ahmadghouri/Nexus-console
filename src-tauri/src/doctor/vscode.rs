@@ -14,7 +14,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-const MACOS: &[Platform] = &[Platform::MacOs];
+const ALL: &[Platform] = &[Platform::MacOs, Platform::Windows];
 
 fn available() -> bool {
     paths::vscode_user_dir().is_some_and(|d| d.is_dir())
@@ -23,7 +23,7 @@ fn available() -> bool {
 pub const ORPHANS: Probe = Probe {
     id: "vscode_orphans",
     scope: Scope::Vscode,
-    platforms: MACOS,
+    platforms: ALL,
     available,
     run: run_orphans,
 };
@@ -31,7 +31,7 @@ pub const ORPHANS: Probe = Probe {
 pub const DB_BLOAT: Probe = Probe {
     id: "state_db_bloat",
     scope: Scope::Vscode,
-    platforms: MACOS,
+    platforms: ALL,
     available,
     run: run_db_bloat,
 };
@@ -50,7 +50,17 @@ fn folder_from_workspace_json(raw: &str) -> Option<PathBuf> {
     let v: serde_json::Value = serde_json::from_str(raw).ok()?;
     let uri = v.get("folder")?.as_str()?;
     let path = uri.strip_prefix("file://")?;
-    Some(PathBuf::from(percent_decode(path)))
+    let path = percent_decode(path);
+    // Windows writes file:///C:/… → after stripping "file://" that's a
+    // leading-slash drive path, which fs resolves as a folder named "C:"
+    // under the current drive. Strip the slash so it resolves to the root.
+    #[cfg(windows)]
+    let path = path
+        .strip_prefix('/')
+        .map(str::to_owned)
+        .filter(|p| p.as_bytes().get(1) == Some(&b':'))
+        .unwrap_or(path);
+    Some(PathBuf::from(path))
 }
 
 /// Just enough percent-decoding for file:// URIs (%20 etc.).
@@ -72,6 +82,22 @@ fn percent_decode(s: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+/// True when the folder sits on a drive letter that no longer exists.
+#[cfg(windows)]
+fn drive_absent(folder: &Path) -> bool {
+    let Some(std::path::Component::Prefix(prefix)) = folder.components().next() else {
+        return false;
+    };
+    let mut root = PathBuf::from(prefix.as_os_str());
+    root.push("\\");
+    !root.exists()
+}
+
+#[cfg(unix)]
+fn drive_absent(_folder: &Path) -> bool {
+    false // unix externals are all under /Volumes, checked separately
+}
+
 fn scan_orphans() -> Option<OrphanScan> {
     let root = paths::vscode_workspace_storage()?;
     let mut dirs = Vec::new();
@@ -87,8 +113,10 @@ fn scan_orphans() -> Option<OrphanScan> {
         let Some(folder) = folder_from_workspace_json(&raw) else {
             continue;
         };
-        // External volumes may just be unplugged — never treat as orphaned.
-        if folder.starts_with("/Volumes") || folder.exists() {
+        // External volumes may just be unplugged — never treat as orphaned:
+        // macOS mounts live under /Volumes; on Windows a path on a drive
+        // letter whose root is gone is usually a disconnected USB drive.
+        if folder.starts_with("/Volumes") || folder.exists() || drive_absent(&folder) {
             continue;
         }
         bytes += dir_size(&dir);
@@ -319,6 +347,7 @@ const QUIT_POLL: Duration = Duration::from_millis(300);
 /// Matched on the *executable path* from `ps`, not `pgrep -f`: pgrep can't
 /// read the main `Contents/MacOS/Code` process's argv on macOS, so it misses
 /// the one process that actually matters.
+#[cfg(unix)]
 fn vscode_pids() -> Vec<String> {
     let Ok(out) = std::process::Command::new("ps")
         .args(["-axo", "pid=,comm="])
@@ -330,6 +359,7 @@ fn vscode_pids() -> Vec<String> {
 }
 
 /// `ps -axo pid=,comm=` lines → pids of VSCode-bundle processes.
+#[cfg(unix)]
 fn parse_vscode_pids(ps_out: &str) -> Vec<String> {
     ps_out
         .lines()
@@ -338,12 +368,38 @@ fn parse_vscode_pids(ps_out: &str) -> Vec<String> {
         .collect()
 }
 
+#[cfg(unix)]
 fn signal_pids(sig: &str, pids: &[String]) {
     if !pids.is_empty() {
         let _ = std::process::Command::new("kill")
             .arg(sig)
             .args(pids)
             .status();
+    }
+}
+
+/// Stable VSCode on Windows: `Code.exe` (main) + its "Code Helper*"
+/// children. Image name from the ToolHelp snapshot — no shell-out needed.
+/// Cursor/VSCode-Insiders have different image names and are intentionally
+/// not matched.
+#[cfg(windows)]
+fn vscode_pids() -> Vec<u32> {
+    crate::win::net::process_names()
+        .into_iter()
+        .filter(|(_, image)| {
+            let img = image.to_ascii_lowercase();
+            img == "code.exe" || img.starts_with("code helper")
+        })
+        .map(|(pid, _)| pid)
+        .collect()
+}
+
+/// TerminateProcess — there's no polite SIGTERM on Windows, so the windows
+/// force-quit is one round of hard kills plus the same released-check waits.
+#[cfg(windows)]
+fn stop_pids(pids: &[u32]) {
+    for pid in pids {
+        let _ = crate::win::net::terminate(*pid);
     }
 }
 
@@ -365,12 +421,31 @@ fn wait_released(timeout: Duration) -> bool {
 /// hot-exit backups; SIGKILL only for whatever ignores that — a modal
 /// "save your changes?" sheet must not be able to veto this, which is the
 /// whole point of the user having confirmed a *force* quit.
+#[cfg(unix)]
 pub fn force_quit_vscode() -> AppResult<()> {
     signal_pids("-TERM", &vscode_pids());
     if wait_released(TERM_GRACE) {
         return Ok(());
     }
     signal_pids("-KILL", &vscode_pids());
+    if wait_released(KILL_GRACE) {
+        return Ok(());
+    }
+    Err(AppError::Forbidden(
+        "Something is still holding the VSCode databases open. Close it and try again.".into(),
+    ))
+}
+
+/// Windows twin: TerminateProcess is already the hard kill, so there's one
+/// round — kill everything Code.exe-shaped, wait for the handles to drop,
+/// sweep again for stragglers that respawned helpers.
+#[cfg(windows)]
+pub fn force_quit_vscode() -> AppResult<()> {
+    stop_pids(&vscode_pids());
+    if wait_released(TERM_GRACE) {
+        return Ok(());
+    }
+    stop_pids(&vscode_pids());
     if wait_released(KILL_GRACE) {
         return Ok(());
     }
@@ -402,6 +477,7 @@ fn vacuum_db(db: &Path) -> Result<(), String> {
 /// So: holders ∩ VSCode processes. Anything else with the file open is left
 /// to VACUUM's own SQLITE_BUSY backstop, which is what it's for.
 /// ponytail: fails open if lsof is missing — same backstop covers it.
+#[cfg(unix)]
 pub fn state_dbs_in_use() -> bool {
     let dbs = all_state_dbs();
     if dbs.is_empty() {
@@ -418,7 +494,17 @@ pub fn state_dbs_in_use() -> bool {
     any_holder_is_vscode(&String::from_utf8_lossy(&out.stdout), &vscode_pids())
 }
 
+/// Windows twin: no lsof worth shelling out for here — if stable VSCode
+/// (Code.exe) isn't running, nothing VSCode-owned holds its state DBs.
+/// Process existence answers the intersection question directly, and our
+/// own read-only scan handles never matter (they're not Code.exe).
+#[cfg(windows)]
+pub fn state_dbs_in_use() -> bool {
+    !all_state_dbs().is_empty() && !vscode_pids().is_empty()
+}
+
 /// `lsof -t` pids ∩ VSCode pids. Whole-token compare — "634041" is not "63404".
+#[cfg(unix)]
 fn any_holder_is_vscode(lsof_out: &str, vscode_pids: &[String]) -> bool {
     lsof_out
         .split_whitespace()
@@ -430,7 +516,7 @@ fn any_holder_is_vscode(lsof_out: &str, vscode_pids: &[String]) -> bool {
 pub const EXTENSION_AUDIT: Probe = Probe {
     id: "extension_audit",
     scope: Scope::Vscode,
-    platforms: MACOS,
+    platforms: ALL,
     available: extensions_available,
     run: run_extension_audit,
 };
@@ -571,9 +657,34 @@ pub(crate) fn installed_extensions() -> Vec<ExtMeta> {
 }
 
 /// VSCode's own CLI — the sanctioned uninstall path (no internals touched).
+#[cfg(unix)]
 fn code_cli() -> Option<PathBuf> {
     let p = PathBuf::from("/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code");
     p.is_file().then_some(p)
+}
+
+/// Windows: `code.cmd` on PATH first (user installs register the bin dir),
+/// then the two standard install locations.
+#[cfg(windows)]
+fn code_cli() -> Option<PathBuf> {
+    if let Ok(path) = std::env::var("PATH") {
+        for dir in path.split(';') {
+            let candidate = PathBuf::from(dir).join("code.cmd");
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    [
+        PathBuf::from(std::env::var("LOCALAPPDATA").unwrap_or_default())
+            .join("Programs")
+            .join("Microsoft VS Code")
+            .join("bin")
+            .join("code.cmd"),
+        PathBuf::from(r"C:\Program Files\Microsoft VS Code\bin\code.cmd"),
+    ]
+    .into_iter()
+    .find(|candidate| candidate.is_file())
 }
 
 fn activation_label(m: &ExtMeta) -> &'static str {
@@ -697,8 +808,10 @@ pub fn uninstall_extension(id: &str) -> AppResult<String> {
         return Err(AppError::NotFound(format!("no such extension: {id}")));
     }
     let cli = code_cli()
-        .ok_or_else(|| AppError::NotFound("VSCode CLI not found in the app bundle".into()))?;
-    let out = std::process::Command::new(cli)
+        .ok_or_else(|| AppError::NotFound("VSCode CLI not found on this machine".into()))?;
+    // util::command → CREATE_NO_WINDOW on Windows (the .cmd wrapper would
+    // otherwise flash a console); plain Command::new on unix.
+    let out = crate::util::command(&cli.to_string_lossy())
         .args(["--uninstall-extension", id])
         .output()
         .map_err(|e| AppError::Shell(format!("code CLI: {e}")))?;
@@ -849,6 +962,13 @@ mod tests {
         );
         assert!(folder_from_workspace_json(r#"{"folder":"vscode-remote://ssh/x"}"#).is_none());
         assert!(folder_from_workspace_json("not json").is_none());
+        // Windows writes file:///C:/… — the drive path must not keep the
+        // leading slash (it would resolve to a folder named "C:" instead).
+        #[cfg(windows)]
+        assert_eq!(
+            folder_from_workspace_json(r#"{"folder":"file:///C:/Users/x/proj"}"#).unwrap(),
+            PathBuf::from("C:/Users/x/proj")
+        );
     }
 
     #[test]
@@ -949,7 +1069,9 @@ mod tests {
 
     // The force-quit's target list: real `ps -axo pid=,comm=` lines. The main
     // process (no "Helper" in its name) must be in there — it's the one that
-    // holds state.vscdb, and the one `pgrep -f` can't see.
+    // holds state.vscdb, and the one `pgrep -f` can't see. Unix fixture (the
+    // windows twin matches Code.exe image names from ToolHelp).
+    #[cfg(unix)]
     #[test]
     fn parses_vscode_pids_from_ps() {
         let ps = "\
@@ -965,6 +1087,7 @@ mod tests {
     // Only VSCode's own hold blocks a VACUUM. Our own scan keeps ~300
     // read-only sqlite handles open while it runs — if that counted, the
     // force-quit would report "still open" with VSCode already dead.
+    #[cfg(unix)]
     #[test]
     fn only_vscode_holders_block_the_vacuum() {
         let vs = vec!["63404".to_owned(), "63406".to_owned()];

@@ -7,6 +7,8 @@ export const packageDtoSchema = z.object({
   outdated: z.boolean(),
   latestVersion: z.string().nullable(),
   pinned: z.boolean(),
+  /** Winget's display name ("MySQL"), skipped from the macOS payload. */
+  displayName: z.string().optional(),
 });
 export const packagesSchema = z.array(packageDtoSchema);
 export type PackageDto = z.infer<typeof packageDtoSchema>;

@@ -21,6 +21,24 @@ interface ServiceIntentState {
 
 export type PersistedServiceIntent = Pick<ServiceIntentState, 'managed' | 'intent' | 'seeded'>;
 
+/** winget ids that once shipped in the popular list but don't exist in any
+ * configured source — rewritten on load so an already-persisted card (the old
+ * `Redis.Redis-Official`) points at its verified replacement instead of staying
+ * permanently "Not installed". Deliberately tiny: this is a data fix for known
+ * ids, not a general validator (validation needs winget, unavailable here). */
+const RENAMED_PACKAGE_IDS: Record<string, string> = {
+  'Redis.Redis-Official': 'Redis.Redis',
+};
+
+/** Apply the static renames to managed entries (intent keys are handled in the
+ * reducer, next to the map, so the two never drift). */
+export function applyPackageIdFixes(managed: ManagedService[]): ManagedService[] {
+  return managed.map((m) => {
+    const to = RENAMED_PACKAGE_IDS[m.formula];
+    return to ? { ...m, formula: to } : m;
+  });
+}
+
 const initialState: ServiceIntentState = {
   managed: [],
   intent: {},
@@ -69,6 +87,14 @@ const serviceIntentSlice = createSlice({
     },
     hydrateServiceIntent(state, action: PayloadAction<Partial<PersistedServiceIntent>>) {
       Object.assign(state, action.payload);
+      // Heal ids that no longer exist before anything renders them.
+      if (state.managed) state.managed = applyPackageIdFixes(state.managed);
+      for (const [from, to] of Object.entries(RENAMED_PACKAGE_IDS)) {
+        if (state.intent?.[from]) {
+          state.intent[to] = state.intent[from];
+          delete state.intent[from];
+        }
+      }
       state.hydrated = true;
     },
   },

@@ -3,11 +3,15 @@ import { env } from '@/config/env';
 
 export type TerminalKind = 'cli' | 'logs';
 
+/** Mirrors pty.ts ShellId — the "+ " menu's shell picker (Windows only). */
+export type ShellKind = 'auto' | 'pwsh' | 'powershell5' | 'cmd';
+
 export interface TerminalSession {
   id: string;
   formula: string;
   title: string;
   kind: TerminalKind;
+  shell: ShellKind;
 }
 
 interface TerminalsState {
@@ -26,7 +30,10 @@ const terminalsSlice = createSlice({
     openTerminal: {
       reducer(state, action: PayloadAction<TerminalSession>) {
         const existing = state.sessions.find(
-          (s) => s.formula === action.payload.formula && s.kind === action.payload.kind,
+          (s) =>
+            s.formula === action.payload.formula &&
+            s.kind === action.payload.kind &&
+            s.shell === action.payload.shell,
         );
         if (existing) {
           state.activeId = existing.id;
@@ -36,8 +43,8 @@ const terminalsSlice = createSlice({
         }
         state.drawerOpen = true;
       },
-      prepare(input: { formula: string; title: string; kind: TerminalKind }) {
-        return { payload: { ...input, id: nanoid() } };
+      prepare(input: { formula: string; title: string; kind: TerminalKind; shell?: ShellKind }) {
+        return { payload: { ...input, id: nanoid(), shell: input.shell ?? 'auto' } };
       },
     },
     closeTerminal(state, action: PayloadAction<string>) {

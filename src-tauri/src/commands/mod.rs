@@ -5,6 +5,8 @@ pub mod packages;
 pub mod ports;
 pub mod services;
 pub mod vscode;
+#[cfg(windows)]
+pub mod winops;
 
 use crate::error::{AppError, AppResult};
 
@@ -67,6 +69,7 @@ pub async fn trust_tap(
     app: tauri::AppHandle,
 ) -> AppResult<()> {
     use crate::brew::{run_brew, BrewLock};
+    #[cfg(unix)]
     use crate::commands::services::ServicesCache;
     use tauri::Manager;
 
@@ -94,7 +97,10 @@ pub async fn trust_tap(
             .lock()
             .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
         run_brew(&bin, &["trust", "--tap", &tap])?;
-        app.state::<ServicesCache>().invalidate();
+        #[cfg(unix)]
+        {
+            app.state::<ServicesCache>().invalidate();
+        }
         Ok(())
     })
     .await

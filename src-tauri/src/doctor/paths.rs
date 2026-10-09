@@ -1,10 +1,17 @@
-// The ONLY place Doctor filesystem locations live (PLAN.md). macOS-only for
-// now — Windows twins land behind the same fns when that phase starts.
+// The ONLY place Doctor filesystem locations live (PLAN.md). Cross-platform:
+// HOME on unix, USERPROFILE/APPDATA on Windows.
 
 use std::path::PathBuf;
 
 pub fn home() -> Option<PathBuf> {
-    std::env::var_os("HOME").map(PathBuf::from)
+    #[cfg(unix)]
+    {
+        std::env::var_os("HOME").map(PathBuf::from)
+    }
+    #[cfg(windows)]
+    {
+        std::env::var_os("USERPROFILE").map(PathBuf::from)
+    }
 }
 
 pub fn claude_projects_dir() -> Option<PathBuf> {
@@ -21,9 +28,18 @@ pub fn archive_root() -> Option<PathBuf> {
     home().map(|h| h.join("claude-history-archive"))
 }
 
-// ponytail: stable VSCode only — Insiders/VSCodium variants when someone asks.
+// ponytail: stable VSCode only — Insiders/Vodium variants when someone asks.
 pub fn vscode_user_dir() -> Option<PathBuf> {
-    home().map(|h| h.join("Library/Application Support/Code/User"))
+    #[cfg(unix)]
+    {
+        home().map(|h| h.join("Library/Application Support/Code/User"))
+    }
+    #[cfg(windows)]
+    {
+        std::env::var_os("APPDATA")
+            .map(PathBuf::from)
+            .map(|d| d.join("Code").join("User"))
+    }
 }
 
 pub fn vscode_workspace_storage() -> Option<PathBuf> {

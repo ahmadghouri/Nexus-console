@@ -11,6 +11,8 @@ mod session;
 mod settings;
 mod tray;
 mod util;
+#[cfg(windows)]
+mod win;
 
 use tauri::Manager;
 
@@ -45,8 +47,12 @@ pub fn run() {
             let brew_bin = ctx.brew_bin.clone();
             app.manage(ctx);
             app.manage(context::BrewVersion::default());
+            app.manage(context::WingetVersion::default());
             app.manage(brew::BrewLock::default());
-            app.manage(commands::services::ServicesCache::default());
+            #[cfg(unix)]
+            {
+                app.manage(commands::services::ServicesCache::default());
+            }
             app.manage(pty::PtyManager::default());
             app.manage(session::SessionServices::default());
             tray::build_tray(app.handle())?;
@@ -62,6 +68,20 @@ pub fn run() {
                         *handle.state::<context::BrewVersion>().0.write().unwrap() = Some(v);
                     }
                 });
+            }
+            // Same async resolve for winget (Windows): `winget --version` is a
+            // subprocess with a console to hide — never on the startup path.
+            #[cfg(windows)]
+            {
+                let winget_bin = app.state::<context::AppContext>().winget_path.clone();
+                if let Some(bin) = winget_bin {
+                    let handle = app.handle().clone();
+                    tauri::async_runtime::spawn_blocking(move || {
+                        if let Some(v) = context::resolve_winget_version(&bin) {
+                            *handle.state::<context::WingetVersion>().0.write().unwrap() = Some(v);
+                        }
+                    });
+                }
             }
             Ok(())
         })

@@ -98,7 +98,12 @@ export function useInstallFormula() {
     meta: { label: 'Installing' },
     mutationFn: ({ name }: { name: string }) => ipc(CMD.INSTALL_FORMULA, { name }, z.string()),
     onSuccess: (installed, { name }) => dispatch(renameManaged({ from: name, to: installed })),
-    onSettled: () => qc.invalidateQueries({ queryKey: brewKeys.services() }),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: brewKeys.services() });
+      // Refresh the installed-package inventory (`['packages','inventory']` and
+      // the Packages tab both hang off the `['packages']` prefix).
+      void qc.invalidateQueries({ queryKey: ['packages'] });
+    },
   });
 }
 

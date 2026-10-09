@@ -13,10 +13,11 @@ import { useAppDispatch } from '@/shared/state/hooks';
 import { setEnabledModules } from '@/shared/state/settingsSlice';
 import { setActiveTab } from '@/shared/state/uiSlice';
 import { Button } from '@/shared/ui/Button';
+import { usePlatform } from '@/shared/tauri';
 // Deep import, not the feature barrel: the barrel pulls SettingsPage (and with it
 // the whole settings graph) into this screen's chunk.
 import { FeaturePicker } from '@/features/settings/components/FeaturePicker';
-import { PRESETS } from './WelcomeScreen.config';
+import { PRESETS, presetLabel } from './WelcomeScreen.config';
 
 /** First launch only (`settings.enabledModules === null`). One screen, one
  * question, skippable in a single keystroke — deliberately not a wizard.
@@ -26,6 +27,7 @@ import { PRESETS } from './WelcomeScreen.config';
 export const WelcomeScreen = () => {
   const dispatch = useAppDispatch();
   const claudeInstalled = useClaudeInstalled();
+  const platform = usePlatform();
   const reduce = useReducedMotion();
   const [selected, setSelected] = useState<ModuleId[]>(() =>
     availableModules(ALL_MODULES, { claudeInstalled }),
@@ -97,7 +99,7 @@ export const WelcomeScreen = () => {
                 onClick={() => setSelected(availableModules(p.modules, { claudeInstalled }))}
                 className="rounded-md border border-border bg-paper px-2.5 py-1.5 text-xs font-medium text-fg-muted transition-colors hover:bg-list hover:text-fg focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none"
               >
-                {p.label}
+                {presetLabel(p.label, platform)}
               </button>
             ),
           )}

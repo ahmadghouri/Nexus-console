@@ -31,7 +31,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["dmg", "app"],
+    "targets": ["dmg", "app", "msi", "nsis"],
     "category": "DeveloperTool",
     "copyright": "© 2026 Vidhya Skill School",
     "icon": [
@@ -44,6 +44,14 @@
     "macOS": {
       "minimumSystemVersion": "11.0",
       "hardenedRuntime": true
+    },
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser"
+      }
     }
   }
 }

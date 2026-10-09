@@ -1,9 +1,16 @@
+#[cfg(unix)]
 use crate::brew::{run_brew, BrewLock};
 use crate::context::AppContext;
-use crate::error::{AppError, AppResult};
+#[cfg(unix)]
+use crate::error::AppError;
+use crate::error::AppResult;
+#[cfg(unix)]
 use crate::util::validate;
+#[cfg(unix)]
 use std::collections::HashMap;
-use tauri::{AppHandle, Manager, State};
+#[cfg(unix)]
+use tauri::Manager;
+use tauri::{AppHandle, State};
 
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -14,6 +21,10 @@ pub struct PackageDto {
     pub outdated: bool,
     pub latest_version: Option<String>,
     pub pinned: bool,
+    /// Windows-only: the friendly name from winget's table (`Git` for the id
+    /// `Git.Git`); None on macOS, skipped from the payload.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -28,6 +39,7 @@ pub struct PackageInfo {
     pub is_cask: bool,
 }
 
+#[cfg(unix)]
 fn brew_bin<'a>(ctx: &'a State<'_, AppContext>) -> AppResult<&'a str> {
     ctx.brew_bin
         .as_deref()
@@ -39,6 +51,7 @@ fn brew_bin<'a>(ctx: &'a State<'_, AppContext>) -> AppResult<&'a str> {
 /// Packages tab silently came back empty. Let that one error through (the UI
 /// offers to trust the tap); every other failure stays an empty list, since a
 /// Mac with no casks installed is normal, not an error.
+#[cfg(unix)]
 fn tolerate(res: AppResult<String>) -> AppResult<String> {
     match res {
         Err(e @ AppError::UntrustedTap(_)) => Err(e),
@@ -48,6 +61,7 @@ fn tolerate(res: AppResult<String>) -> AppResult<String> {
 }
 
 /// `name version[ version2 …]` → (name, joined versions).
+#[cfg(unix)]
 fn parse_installed_line(line: &str) -> Option<(String, String)> {
     let mut it = line.split_whitespace();
     let name = it.next()?.to_string();
@@ -56,6 +70,7 @@ fn parse_installed_line(line: &str) -> Option<(String, String)> {
 }
 
 /// name → (latest_version, pinned) from `brew outdated --json=v2`.
+#[cfg(unix)]
 fn parse_outdated(json: &str) -> HashMap<String, (Option<String>, bool)> {
     #[derive(serde::Deserialize)]
     struct Entry {
@@ -93,37 +108,46 @@ pub struct OutdatedDto {
 /// instead of waiting on the slow `brew outdated`. Runs off the main thread.
 #[tauri::command]
 pub async fn list_packages(ctx: State<'_, AppContext>) -> AppResult<Vec<PackageDto>> {
-    let brew = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        // The two `brew list` calls are independent — run them on separate
-        // threads instead of serially (roughly halves this command's wall time).
-        let brew2 = brew.clone();
-        let casks_handle =
-            std::thread::spawn(move || run_brew(&brew2, &["list", "--cask", "--versions"]));
-        let formulae = tolerate(run_brew(&brew, &["list", "--formula", "--versions"]))?;
-        let casks = tolerate(casks_handle.join().unwrap_or(Ok(String::new())))?;
+    #[cfg(windows)]
+    {
+        let _ = ctx;
+        crate::commands::winops::list_packages().await
+    }
+    #[cfg(unix)]
+    {
+        let brew = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            // The two `brew list` calls are independent — run them on separate
+            // threads instead of serially (roughly halves this command's wall time).
+            let brew2 = brew.clone();
+            let casks_handle =
+                std::thread::spawn(move || run_brew(&brew2, &["list", "--cask", "--versions"]));
+            let formulae = tolerate(run_brew(&brew, &["list", "--formula", "--versions"]))?;
+            let casks = tolerate(casks_handle.join().unwrap_or(Ok(String::new())))?;
 
-        let mut out = Vec::new();
-        for (text, kind) in [(&formulae, "formula"), (&casks, "cask")] {
-            for line in text.lines() {
-                let Some((name, version)) = parse_installed_line(line) else {
-                    continue;
-                };
-                out.push(PackageDto {
-                    name,
-                    version,
-                    kind: kind.to_string(),
-                    outdated: false,
-                    latest_version: None,
-                    pinned: false,
-                });
+            let mut out = Vec::new();
+            for (text, kind) in [(&formulae, "formula"), (&casks, "cask")] {
+                for line in text.lines() {
+                    let Some((name, version)) = parse_installed_line(line) else {
+                        continue;
+                    };
+                    out.push(PackageDto {
+                        name,
+                        version,
+                        kind: kind.to_string(),
+                        outdated: false,
+                        latest_version: None,
+                        pinned: false,
+                        display_name: None,
+                    });
+                }
             }
-        }
-        out.sort_by(|a, b| a.name.cmp(&b.name));
-        Ok::<Vec<PackageDto>, AppError>(out)
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+            out.sort_by(|a, b| a.name.cmp(&b.name));
+            Ok::<Vec<PackageDto>, AppError>(out)
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 /// Outdated status for installed packages (`brew outdated --json=v2` — slow,
@@ -131,22 +155,30 @@ pub async fn list_packages(ctx: State<'_, AppContext>) -> AppResult<Vec<PackageD
 /// onto the list. Runs off the main thread so it never freezes the app.
 #[tauri::command]
 pub async fn packages_outdated(ctx: State<'_, AppContext>) -> AppResult<Vec<OutdatedDto>> {
-    let brew = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let json = run_brew(&brew, &["outdated", "--json=v2"]).unwrap_or_default();
-        let map = parse_outdated(&json);
-        Ok::<Vec<OutdatedDto>, AppError>(
-            map.into_iter()
-                .map(|(name, (latest_version, pinned))| OutdatedDto {
-                    name,
-                    latest_version,
-                    pinned,
-                })
-                .collect(),
-        )
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = ctx;
+        crate::commands::winops::packages_outdated().await
+    }
+    #[cfg(unix)]
+    {
+        let brew = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let json = run_brew(&brew, &["outdated", "--json=v2"]).unwrap_or_default();
+            let map = parse_outdated(&json);
+            Ok::<Vec<OutdatedDto>, AppError>(
+                map.into_iter()
+                    .map(|(name, (latest_version, pinned))| OutdatedDto {
+                        name,
+                        latest_version,
+                        pinned,
+                    })
+                    .collect(),
+            )
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 /// Installed formulae that depend on `name` (`brew uses --installed`).
@@ -155,21 +187,29 @@ pub async fn package_dependents(
     name: String,
     ctx: State<'_, AppContext>,
 ) -> AppResult<Vec<String>> {
-    validate::validate_formula(&name)?;
-    let brew = brew_bin(&ctx)?.to_string();
-    // Off the main thread — `brew uses` shells out and would freeze the UI.
-    tauri::async_runtime::spawn_blocking(move || {
-        let out = run_brew(&brew, &["uses", "--installed", &name])?;
-        Ok::<Vec<String>, AppError>(
-            out.lines()
-                .map(str::trim)
-                .filter(|l| !l.is_empty())
-                .map(String::from)
-                .collect(),
-        )
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = ctx;
+        crate::commands::winops::package_dependents(name).await
+    }
+    #[cfg(unix)]
+    {
+        validate::validate_formula(&name)?;
+        let brew = brew_bin(&ctx)?.to_string();
+        // Off the main thread — `brew uses` shells out and would freeze the UI.
+        tauri::async_runtime::spawn_blocking(move || {
+            let out = run_brew(&brew, &["uses", "--installed", &name])?;
+            Ok::<Vec<String>, AppError>(
+                out.lines()
+                    .map(str::trim)
+                    .filter(|l| !l.is_empty())
+                    .map(String::from)
+                    .collect(),
+            )
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 // async + spawn_blocking so the long `brew upgrade`/`update` subprocess (and the
@@ -183,98 +223,131 @@ pub async fn upgrade_package(
     ctx: State<'_, AppContext>,
     app: AppHandle,
 ) -> AppResult<()> {
-    validate::validate_formula(&name)?;
-    let bin = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let lock = app.state::<BrewLock>();
-        let _g = lock
-            .0
-            .lock()
-            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
-        run_brew(&bin, &["upgrade", &name])?;
-        Ok(())
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = (ctx, app);
+        crate::commands::winops::upgrade_package(name).await
+    }
+    #[cfg(unix)]
+    {
+        validate::validate_formula(&name)?;
+        let bin = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let lock = app.state::<BrewLock>();
+            let _g = lock
+                .0
+                .lock()
+                .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+            run_brew(&bin, &["upgrade", &name])?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 #[tauri::command]
 pub async fn upgrade_all(ctx: State<'_, AppContext>, app: AppHandle) -> AppResult<()> {
-    let bin = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let lock = app.state::<BrewLock>();
-        let _g = lock
-            .0
-            .lock()
-            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
-        run_brew(&bin, &["upgrade"])?;
-        Ok(())
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = (ctx, app);
+        crate::commands::winops::upgrade_all().await
+    }
+    #[cfg(unix)]
+    {
+        let bin = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let lock = app.state::<BrewLock>();
+            let _g = lock
+                .0
+                .lock()
+                .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+            run_brew(&bin, &["upgrade"])?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 /// `brew update` — refresh formula definitions (does not upgrade packages).
 #[tauri::command]
 pub async fn update_homebrew(ctx: State<'_, AppContext>, app: AppHandle) -> AppResult<()> {
-    let bin = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let lock = app.state::<BrewLock>();
-        let _g = lock
-            .0
-            .lock()
-            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
-        run_brew(&bin, &["update"])?;
-        Ok(())
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = (ctx, app);
+        crate::commands::winops::update_homebrew().await
+    }
+    #[cfg(unix)]
+    {
+        let bin = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let lock = app.state::<BrewLock>();
+            let _g = lock
+                .0
+                .lock()
+                .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+            run_brew(&bin, &["update"])?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 #[tauri::command]
 pub async fn package_info(name: String, ctx: State<'_, AppContext>) -> AppResult<PackageInfo> {
-    validate::validate_formula(&name)?;
-    let brew = brew_bin(&ctx)?.to_string();
-    // Off the main thread — `brew info` shells out (may hit the network) and would freeze the UI.
-    tauri::async_runtime::spawn_blocking(move || {
-        let out = run_brew(&brew, &["info", "--json=v2", &name])?;
-        let v: serde_json::Value = serde_json::from_str(&out)
-            .map_err(|e| AppError::Parse(format!("brew info json: {e}")))?;
+    #[cfg(windows)]
+    {
+        let _ = ctx;
+        crate::commands::winops::package_info(name).await
+    }
+    #[cfg(unix)]
+    {
+        validate::validate_formula(&name)?;
+        let brew = brew_bin(&ctx)?.to_string();
+        // Off the main thread — `brew info` shells out (may hit the network) and would freeze the UI.
+        tauri::async_runtime::spawn_blocking(move || {
+            let out = run_brew(&brew, &["info", "--json=v2", &name])?;
+            let v: serde_json::Value = serde_json::from_str(&out)
+                .map_err(|e| AppError::Parse(format!("brew info json: {e}")))?;
 
-        let (item, is_cask) = match v["formulae"].get(0) {
-            Some(f) => (f, false),
-            None => (
-                v["casks"]
-                    .get(0)
-                    .ok_or_else(|| AppError::NotFound(format!("no info for {name}")))?,
-                true,
-            ),
-        };
+            let (item, is_cask) = match v["formulae"].get(0) {
+                Some(f) => (f, false),
+                None => (
+                    v["casks"]
+                        .get(0)
+                        .ok_or_else(|| AppError::NotFound(format!("no info for {name}")))?,
+                    true,
+                ),
+            };
 
-        let str_field = |k: &str| item[k].as_str().map(String::from);
-        let dependencies = item["dependencies"]
-            .as_array()
-            .map(|a| {
-                a.iter()
-                    .filter_map(|d| d.as_str().map(String::from))
-                    .collect()
+            let str_field = |k: &str| item[k].as_str().map(String::from);
+            let dependencies = item["dependencies"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|d| d.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            Ok::<PackageInfo, AppError>(PackageInfo {
+                name,
+                description: str_field("desc"),
+                homepage: str_field("homepage"),
+                version: item["versions"]["stable"].as_str().map(String::from),
+                dependencies,
+                is_service: !item["service"].is_null(),
+                is_cask,
             })
-            .unwrap_or_default();
-
-        Ok::<PackageInfo, AppError>(PackageInfo {
-            name,
-            description: str_field("desc"),
-            homepage: str_field("homepage"),
-            version: item["versions"]["stable"].as_str().map(String::from),
-            dependencies,
-            is_service: !item["service"].is_null(),
-            is_cask,
         })
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
+#[cfg(unix)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -300,6 +373,7 @@ mod tests {
     }
 
     // Real-machine: parse the actual installed list. Ignored in CI.
+    #[cfg(unix)]
     #[test]
     #[ignore]
     fn lists_real_packages() {

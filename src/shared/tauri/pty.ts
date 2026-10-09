@@ -6,10 +6,16 @@ import { IpcError } from './ipc-error';
 /** Streamed from Rust — not zod-validated (high-frequency, and it's raw bytes). */
 export type PtyEvent = { type: 'output'; data: string } | { type: 'exit' };
 
+/** Shell picker ids mirrored by pty.rs `windows_shell` (allowlisted in Rust,
+ * never a path). `auto` = PowerShell 7 when installed, else Windows PowerShell. */
+export type ShellId = 'auto' | 'pwsh' | 'powershell5' | 'cmd';
+
 export interface PtyOpenParams {
   id: string;
   formula: string;
   kind: 'cli' | 'logs';
+  /** Windows-only; ignored (login shell) on macOS. Defaults to 'auto'. */
+  shell?: ShellId;
   cols: number;
   rows: number;
 }
@@ -22,7 +28,7 @@ export async function openPty(
   const channel = new Channel<PtyEvent>();
   channel.onmessage = onEvent;
   try {
-    await invoke(CMD.PTY_OPEN, { ...params, onEvent: channel });
+    await invoke(CMD.PTY_OPEN, { ...params, shell: params.shell ?? 'auto', onEvent: channel });
   } catch (e) {
     throw IpcError.from(e);
   }

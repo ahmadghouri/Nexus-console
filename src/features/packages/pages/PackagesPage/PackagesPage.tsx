@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { usePackages, usePackagesOutdated } from '@/features/packages/api/usePackages';
 import { useUpgradePackage, useUpgradeAll } from '@/features/packages/api/packageMutations';
 import { useServices } from '@/shared/brew';
+import { usePlatform } from '@/shared/tauri';
 import { Spinner } from '@/shared/ui/Spinner';
 import { ErrorPanel } from '@/shared/ui/ErrorPanel';
 import {
@@ -13,6 +14,7 @@ import { BrewInfoPanel } from '@/features/packages/components/BrewInfoPanel';
 import { UninstallDialog } from '@/features/packages/components/UninstallDialog';
 
 export const PackagesPage = () => {
+  const windows = usePlatform() === 'windows';
   const { data, isPending, isError, error, isFetching, refetch } = usePackages();
   const { data: outdated } = usePackagesOutdated();
   const { data: services } = useServices();
@@ -59,7 +61,9 @@ export const PackagesPage = () => {
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-4">
         <div>
           <h1 className="text-lg font-semibold text-fg">Packages</h1>
-          <p className="text-sm text-fg-muted">Everything Homebrew installed</p>
+          <p className="text-sm text-fg-muted">
+            {windows ? 'Everything WinGet installed' : 'Everything Homebrew installed'}
+          </p>
         </div>
         <PackagesToolbar
           query={query}

@@ -1,0 +1,172 @@
+﻿Name                                                               Id                                                                                     Version             Available      Source
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+3D Viewer                                                          MSIX\Microsoft.Microsoft3DViewer_1.0.125.0_x64__8wekyb3d8bbwe                          1.0.125.0                          
+Antigravity 2.0.11                                                 Google.Antigravity                                                                     2.0.11              2.21.1         winget
+Antigravity IDE (User)                                             Google.AntigravityIDE                                                                  2.1.1               2.5.5          winget
+App Installer                                                      Microsoft.AppInstaller                                                                 1.29.380.0                         winget
+Athas                                                              ARP\User\X64\Athas                                                                     0.7.1                              
+AV1 Video Extension                                                MSIX\Microsoft.AV1VideoExtension_2.0.35.0_x64__8wekyb3d8bbwe                           2.0.35.0                           
+AVC Encoder Video Extension                                        MSIX\Microsoft.AVCEncoderVideoExtension_1.1.47.0_x64__8wekyb3d8bbwe                    1.1.47.0                           
+Brave                                                              ARP\Machine\X86\BraveSoftware Brave-Browser                                            155.1.97.56                        
+Discord                                                            ARP\User\X64\Discord                                                                   1.0.9260                           
+Docker Desktop                                                     XP8CBJ40XLBWKX                                                                         4.92.0              4.93.0         msstore
+Dolby Audio Premium                                                MSIX\DolbyLaboratories.DolbyAudioPremium_3.30201.210.0_x64__rz1tebttyb220              3.30201.210.0                      
+Eclipse Temurin JDK with Hotspot 17.0.20.1+1 (x64)                 EclipseAdoptium.Temurin.17.JDK                                                         17.0.20.101                        winget
+ELAN Touchpad for Thinkpad                                         MSIX\ELANMicroelectronicsCorpo.ELANTouchpadforThinkpad_24.121.15.0_x64__stws0m115j6hg  24.121.15.0                        
+ELAN TrackPoint for Thinkpad                                       MSIX\ELANMicroelectronicsCorpo.ELANTrackPointforThinkpa_24.121.51.0_x64__stws0m115j6hg 24.121.51.0                        
+English (United Kingdom) Local Experience Pack                     MSIX\Microsoft.LanguageExperiencePacken-GB_26100.137.259.0_neutral__8wekyb3d8bbwe      26100.137.259.0                    
+Feedback Hub                                                       MSIX\Microsoft.WindowsFeedbackHub_2.2608.303.0_x64__8wekyb3d8bbwe                      2.2608.303.0                       
+Figma                                                              Figma.Figma                                                                            126.6.9             126.9.13       winget
+Figma Agent                                                        Figma.FigmaAgent                                                                       126.9.12                           winget
+Films & TV                                                         MSIX\Microsoft.ZuneVideo_10.26061.10051.0_x64__8wekyb3d8bbwe                           10.26061.10051.0                   
+Game Bar                                                           MSIX\Microsoft.XboxGamingOverlay_7.326.8061.0_x64__8wekyb3d8bbwe                       7.326.8061.0                       
+Get Help                                                           MSIX\Microsoft.GetHelp_10.2409.42492.0_x64__8wekyb3d8bbwe                              10.2409.42492.0                    
+Git                                                                Git.Git                                                                                2.51.2              2.55.0.5       winget
+GitHub CLI                                                         GitHub.cli                                                                             2.97.0              2.102.0        winget
+Google Chrome                                                      ARP\Machine\X86\Google Chrome                                                          154.0.8037.99                      
+GrafanaEnterprise                                                  GrafanaLabs.Grafana.Enterprise                                                         13.2.3.0                           winget
+HEIF Image Extension                                               MSIX\Microsoft.HEIFImageExtension_1.2.48.0_x64__8wekyb3d8bbwe                          1.2.48.0                           
+Herd                                                               BeyondCode.Herd                                                                        1.30.0                             winget
+HEVC Video Extensions for Licensed Applications                    MSIX\Microsoft.HEVCVideoExtensionFirstParty_2.4.111.0_x64__8wekyb3d8bbwe               2.4.111.0                          
+Intel┬« Graphics Command Center                                     MSIX\AppUp.IntelGraphicsExperience_1.100.5688.0_x64__8j3eq9eme6ctt                     1.100.5688.0                       
+Intel┬« PROSet/Wireless Software                                    ARP\Machine\X86\{348aed0f-e61a-49dc-8620-ee5163100a1a}                                 20.110.0.0u                        
+Internet Download Manager                                          Tonec.InternetDownloadManager                                                          6.42.58             6.43.14        winget
+Kiro (User)                                                        Amazon.Kiro                                                                            1.2.4               1.2.37         winget
+Lenovo Service Bridge                                              Lenovo.ServiceBridge                                                                   5.0.2.21                           winget
+Lenovo System Update                                               Lenovo.SystemUpdate                                                                    5.08.03.59          5.08.04.85     winget
+LocalSend version 1.17.0                                           LocalSend.LocalSend                                                                    1.17.0              1.18.2         winget
+Mail and Calendar                                                  MSIX\microsoft.windowscommunicationsapps_16005.14326.22342.0_x64__8wekyb3d8bbwe        16005.14326.22342.0                
+Mem Reduct                                                         Henry++.MemReduct                                                                      3.5.2                              winget
+Microsoft .Net Native Framework Package 1.3                        MSIX\Microsoft.NET.Native.Framework.1.3_1.3.24211.0_x64__8wekyb3d8bbwe                 1.3.24211.0                        
+Microsoft .Net Native Framework Package 1.3                        MSIX\Microsoft.NET.Native.Framework.1.3_1.3.24211.0_x86__8wekyb3d8bbwe                 1.3.24211.0                        
+Microsoft .Net Native Framework Package 1.7                        MSIX\Microsoft.NET.Native.Framework.1.7_1.7.27413.0_x64__8wekyb3d8bbwe                 1.7.27413.0                        
+Microsoft .Net Native Framework Package 1.7                        MSIX\Microsoft.NET.Native.Framework.1.7_1.7.27413.0_x86__8wekyb3d8bbwe                 1.7.27413.0                        
+Microsoft .Net Native Framework Package 2.1                        MSIX\Microsoft.NET.Native.Framework.2.1_2.1.27427.0_x64__8wekyb3d8bbwe                 2.1.27427.0                        
+Microsoft .Net Native Framework Package 2.1                        MSIX\Microsoft.NET.Native.Framework.2.1_2.1.27427.0_x86__8wekyb3d8bbwe                 2.1.27427.0                        
+Microsoft .Net Native Framework Package 2.2                        MSIX\Microsoft.NET.Native.Framework.2.2_2.2.29512.0_x64__8wekyb3d8bbwe                 2.2.29512.0                        
+Microsoft .Net Native Framework Package 2.2                        MSIX\Microsoft.NET.Native.Framework.2.2_2.2.29512.0_x86__8wekyb3d8bbwe                 2.2.29512.0                        
+Microsoft .Net Native Runtime Package 1.4                          MSIX\Microsoft.NET.Native.Runtime.1.4_1.4.24201.0_x64__8wekyb3d8bbwe                   1.4.24201.0                        
+Microsoft .Net Native Runtime Package 1.4                          MSIX\Microsoft.NET.Native.Runtime.1.4_1.4.24201.0_x86__8wekyb3d8bbwe                   1.4.24201.0                        
+Microsoft .Net Native Runtime Package 2.1                          MSIX\Microsoft.NET.Native.Runtime.2.1_2.1.26424.0_x64__8wekyb3d8bbwe                   2.1.26424.0                        
+Microsoft .Net Native Runtime Package 2.1                          MSIX\Microsoft.NET.Native.Runtime.2.1_2.1.26424.0_x86__8wekyb3d8bbwe                   2.1.26424.0                        
+Microsoft .Net Native Runtime Package 2.2                          Microsoft.DotNet.Native.Runtime                                                        2.2.28604.0                        winget
+Microsoft .Net Native Runtime Package 2.2                          Microsoft.DotNet.Native.Runtime                                                        2.2.28604.0                        winget
+Microsoft 365 Copilot                                              Microsoft.365Copilot                                                                   19.2610.35011.0                    winget
+Microsoft Bing                                                     MSIX\Microsoft.BingSearch_1.1.43.0_x64__8wekyb3d8bbwe                                  1.1.43.0                           
+Microsoft Clipchamp                                                MSIX\Clipchamp.Clipchamp_4.7.10020.0_x64__yxz26nhyzhsrt                                4.7.10020.0                        
+Microsoft Edge                                                     Microsoft.Edge                                                                         154.0.4258.62                      winget
+Microsoft Edge                                                     MSIX\Microsoft.MicrosoftEdge.Stable_152.0.4191.53_neutral__8wekyb3d8bbwe               152.0.4191.53                      
+Microsoft Engagement Framework                                     MSIX\Microsoft.Services.Store.Engagement_10.0.23012.0_x64__8wekyb3d8bbwe               10.0.23012.0                       
+Microsoft Engagement Framework                                     MSIX\Microsoft.Services.Store.Engagement_10.0.23012.0_x86__8wekyb3d8bbwe               10.0.23012.0                       
+Microsoft Photos                                                   MSIX\Microsoft.Windows.Photos_2026.11090.22001.0_x64__8wekyb3d8bbwe                    2026.11090.22001.0                 
+Microsoft Sticky Notes                                             MSIX\Microsoft.MicrosoftStickyNotes_4.0.6104.0_x64__8wekyb3d8bbwe                      4.0.6104.0                         
+Microsoft Store                                                    MSIX\Microsoft.WindowsStore_22608.1401.5.0_x64__8wekyb3d8bbwe                          22608.1401.5.0                     
+Microsoft Teams                                                    Microsoft.Teams                                                                        26246.1604.5133.838                winget
+Microsoft Teams Meeting Add-in for Microsoft Office                XP8BT8DW290MPQ                                                                         1.25.24601                         msstore
+Microsoft To Do                                                    MSIX\Microsoft.Todos_0.178.8571.0_x64__8wekyb3d8bbwe                                   0.178.8571.0                       
+Microsoft Update Health Tools                                      ARP\Machine\X64\{C6FD611E-7EFE-488C-A0E0-974C09EF6473}                                 5.72.0.0                           
+Microsoft Visual C++ 2015 UWP Desktop Runtime Package              Microsoft.VCLibs.Desktop.14                                                            14.0.33728.0                       winget
+Microsoft Visual C++ 2015 UWP Desktop Runtime Package              Microsoft.VCLibs.Desktop.14                                                            14.0.33728.0                       winget
+Microsoft Visual C++ 2015 UWP Runtime Package                      Microsoft.VCLibs.14                                                                    14.0.33519.0                       winget
+Microsoft Visual C++ 2015 UWP Runtime Package                      Microsoft.VCLibs.14                                                                    14.0.33519.0                       winget
+Microsoft Visual C++ 2015-2022 Redistributable (x86) - 14.44.35211 Microsoft.VCRedist.2015+.x86                                                           14.44.35211.0       14.51.36247.0  winget
+Microsoft Visual C++ v14 Redistributable (x64) - 14.51.36247       Microsoft.VCRedist.2015+.x64                                                           14.51.36247.0                      winget
+Microsoft Visual Studio Code (User)                                Microsoft.VisualStudioCode                                                             1.140.0                            winget
+Microsoft Windows Application Compatibility Fix Database           ARP\Machine\X64\{22221111-1111-1111-1111-111111111111}.sdb                             Unknown                            
+Microsoft Windows Desktop Runtime - 8.0.23 (x64)                   Microsoft.DotNet.DesktopRuntime.8                                                      8.0.23              8.0.31         winget
+Microsoft.UI.Xaml.2.3                                              MSIX\Microsoft.UI.Xaml.2.3_2.32002.13001.0_x64__8wekyb3d8bbwe                          2.32002.13001.0                    
+Microsoft.UI.Xaml.2.3                                              MSIX\Microsoft.UI.Xaml.2.3_2.32002.13001.0_x86__8wekyb3d8bbwe                          2.32002.13001.0                    
+Microsoft.UI.Xaml.2.4                                              MSIX\Microsoft.UI.Xaml.2.4_2.42007.9001.0_x64__8wekyb3d8bbwe                           2.42007.9001.0                     
+Microsoft.UI.Xaml.2.4                                              MSIX\Microsoft.UI.Xaml.2.4_2.42007.9001.0_x86__8wekyb3d8bbwe                           2.42007.9001.0                     
+Microsoft.UI.Xaml.2.7                                              Microsoft.UI.Xaml.2.7                                                                  7.2409.9001.0                      winget
+Microsoft.UI.Xaml.2.7                                              Microsoft.UI.Xaml.2.7                                                                  7.2409.9001.0                      winget
+Microsoft.UI.Xaml.2.8                                              Microsoft.UI.Xaml.2.8                                                                  8.2511.26001.0                     winget
+Microsoft.UI.Xaml.2.8                                              Microsoft.UI.Xaml.2.8                                                                  8.2501.31001.0                     winget
+Microsoft.UI.Xaml.2.8                                              Microsoft.UI.Xaml.2.8                                                                  8.2501.31001.0                     winget
+Mixed Reality Portal                                               MSIX\Microsoft.MixedReality.Portal_2000.21051.1282.0_x64__8wekyb3d8bbwe                2000.21051.1282.0                  
+Mobile devices                                                     MSIX\MicrosoftWindows.CrossDevice_0.26072.116.0_x64__cw5n1h2txyewy                     0.26072.116.0                      
+MongoDB 8.2.1 2008R2Plus SSL (64 bit)                              MongoDB.Server                                                                         8.2.1               9.0.2          winget
+MongoDB Compass                                                    MongoDB.Compass.Full                                                                   1.51.0              1.52.0.0       winget
+Motorola Mobile Drivers Installation 6.4.0                         Motorola.MobileDrivers                                                                 6.4.0                              winget
+Mozilla Firefox (x64 en-US)                                        ARP\Machine\X64\Mozilla Firefox                                                        155.0                              
+Mozilla Maintenance Service                                        ARP\Machine\X64\MozillaMaintenanceService                                              145.0                              
+MPEG-2 Video Extension                                             MSIX\Microsoft.MPEG2VideoExtension_1.2.32.0_x64__8wekyb3d8bbwe                         1.2.32.0                           
+MSN Weather                                                        MSIX\Microsoft.BingWeather_4.54.63045.0_x64__8wekyb3d8bbwe                             4.54.63045.0                       
+ngrok                                                              9MVS1J51GMK6                                                                           3.39.9.0                           msstore
+OneDrive                                                           MSIX\Microsoft.OneDriveSync_25206.1021.3.0_neutral__8wekyb3d8bbwe                      25206.1021.3.0                     
+OneNote for Windows 10                                             MSIX\Microsoft.Office.OneNote_16.14326.22589.0_x64__8wekyb3d8bbwe                      16.14326.22589.0                   
+OpenCode 1.18.23                                                   SST.OpenCodeDesktop                                                                    1.18.23             1.18.35        winget
+OpenSSL 3.6.0 Light (64-bit)                                       ShiningLight.OpenSSL.Light                                                             3.6.0               4.0.3          winget
+Outlook for Windows                                                Microsoft.Outlook                                                                      1.2025.1111.100     1.2026.812.100 winget
+Paint                                                              MSIX\Microsoft.Paint_11.2605.81.0_x64__8wekyb3d8bbwe                                   11.2605.81.0                       
+Phone Link                                                         MSIX\Microsoft.YourPhone_1.26072.257.0_x64__8wekyb3d8bbwe                              1.26072.257.0                      
+Postman x64 12.17.3                                                ARP\User\X64\Postman                                                                   12.17.3                            
+Power Automate                                                     MSIX\Microsoft.PowerAutomateDesktop_1.0.2141.0_x64__8wekyb3d8bbwe                      1.0.2141.0                         
+PrebootManager                                                     MSIX\SynapticsIncorporated.SynapticsUtilities_1.1.20.0_x64__807d65c4rvak2              1.1.20.0                           
+Python 3.12.10 (64-bit)                                            Python.Python.3.12                                                                     3.12.10                            winget
+Python Launcher                                                    Python.Launcher                                                                        3.12.10             3.14.7         winget
+Quick Assist                                                       MSIX\MicrosoftCorporationII.QuickAssist_2.0.61.0_x64__8wekyb3d8bbwe                    2.0.61.0                           
+Raw Image Extension                                                MSIX\Microsoft.RawImageExtension_2.5.35.0_x64__8wekyb3d8bbwe                           2.5.35.0                           
+Realtek Audio Control                                              MSIX\RealtekSemiconductorCorp.RealtekAudioControl_1.1.137.0_x64__dt26b99r8h8gj         1.1.137.0                          
+Requestly 26.2.6                                                   BrowserStackInc.Requestly                                                              26.2.6              26.6.29        winget
+Rustup: the Rust toolchain installer                               Rustlang.Rustup                                                                        1.29.0              1.29.1         winget
+Snipping Tool                                                      MSIX\Microsoft.ScreenSketch_11.2607.23.0_x64__8wekyb3d8bbwe                            11.2607.23.0                       
+Solitaire & Casual Games                                           MSIX\Microsoft.MicrosoftSolitaireCollection_4.27.9181.0_x64__8wekyb3d8bbwe             4.27.9181.0                        
+Start Experiences App                                              MSIX\Microsoft.StartExperiencesApp_1.380.2.0_x64__8wekyb3d8bbwe                        1.380.2.0                          
+Store Experience Host                                              MSIX\Microsoft.StorePurchaseApp_22608.1401.1.0_x64__8wekyb3d8bbwe                      22608.1401.1.0                     
+TablePlus 26.7.0                                                   TablePlus.TablePlus                                                                    26.7.0              26.10.16       winget
+ThunderboltTM Control Center                                       MSIX\AppUp.ThunderboltControlCenter_1.0.37.0_x64__8j3eq9eme6ctt                        1.0.37.0                           
+TraeCode (User)                                                    ByteDance.Trae                                                                         3.5.104                            winget
+Update for x64-based Windows Systems (KB5001716)                   ARP\Machine\X64\{B8D93870-98D1-4980-AFCA-E26563CDFB79}                                 8.94.0.0                           
+Visual Studio Code                                                 MSIX\Microsoft.VisualStudioCode_1.0.140.0_neutral__8wekyb3d8bbwe                       1.0.140.0                          
+VLC media player                                                   VideoLAN.VLC                                                                           3.0.23              3.0.24         winget
+VP9 Video Extensions                                               MSIX\Microsoft.VP9VideoExtensions_1.2.20.0_x64__8wekyb3d8bbwe                          1.2.20.0                           
+Web Media Extensions                                               MSIX\Microsoft.WebMediaExtensions_2.1.51.0_x64__8wekyb3d8bbwe                          2.1.51.0                           
+WebP Image Extension                                               MSIX\Microsoft.WebpImageExtension_1.2.31.0_x64__8wekyb3d8bbwe                          1.2.31.0                           
+WhatsApp                                                           MSIX\5319275A.WhatsAppDesktop_2.2638.102.0_x64__cv1g1gvanyjgm                          2.2638.102.0                       
+Widgets Platform Runtime                                           MSIX\Microsoft.WidgetsPlatformRuntime_1.6.19.0_x64__8wekyb3d8bbwe                      1.6.19.0                           
+WinAppRuntime.Main.1.5                                             MSIX\MicrosoftCorporationII.WinAppRuntime.Main.1.5_5001.373.1736.0_x64__8wekyb3d8bbwe  5001.373.1736.0                    
+WinAppRuntime.Main.1.8                                             MSIX\MicrosoftCorporationII.WinAppRuntime.Main.1.8_8000.994.2142.0_x64__8wekyb3d8bbwe  8000.994.2142.0                    
+WinAppRuntime.Main.2                                               MSIX\MicrosoftCorporationII.WinAppRuntime.Main.2_2.5.1.0_x64__8wekyb3d8bbwe            2.5.1.0                            
+WinAppRuntime.Singleton                                            MSIX\MicrosoftCorporationII.WinAppRuntime.Singleton_8002.5.1.0_x64__8wekyb3d8bbwe      8002.5.1.0                         
+Windows Advanced Settings                                          MSIX\Microsoft.Windows.DevHome_0.2100.858.0_x64__8wekyb3d8bbwe                         0.2100.858.0                       
+Windows Application Compatibility Enhancements                     MSIX\Microsoft.ApplicationCompatibilityEnhancements_1.2511.9.0_x64__8wekyb3d8bbwe      1.2511.9.0                         
+Windows Calculator                                                 MSIX\Microsoft.WindowsCalculator_11.2607.0.0_x64__8wekyb3d8bbwe                        11.2607.0.0                        
+Windows Camera                                                     MSIX\Microsoft.WindowsCamera_2026.2607.1.0_x64__8wekyb3d8bbwe                          2026.2607.1.0                      
+Windows Clock                                                      MSIX\Microsoft.WindowsAlarms_1.1.158.0_x64__8wekyb3d8bbwe                              1.1.158.0                          
+Windows Maps                                                       MSIX\Microsoft.WindowsMaps_1.0.65.0_x64__8wekyb3d8bbwe                                 1.0.65.0                           
+Windows Media Player                                               MSIX\Microsoft.ZuneMusic_11.2607.16.0_x64__8wekyb3d8bbwe                               11.2607.16.0                       
+Windows Notepad                                                    MSIX\Microsoft.WindowsNotepad_11.2607.14.0_x64__8wekyb3d8bbwe                          11.2607.14.0                       
+Windows Package Manager Source (winget) V2                         MSIX\Microsoft.Winget.Source_2026.1008.1721.32_neutral__8wekyb3d8bbwe                  2026.1008.1721.32                  
+Windows Security                                                   MSIX\Microsoft.SecHealthUI_1000.29628.1000.0_x64__8wekyb3d8bbwe                        1000.29628.1000.0                  
+Windows Sound Recorder                                             MSIX\Microsoft.WindowsSoundRecorder_1.1.127.0_x64__8wekyb3d8bbwe                       1.1.127.0                          
+Windows Subsystem for Linux                                        Microsoft.WSL                                                                          2.6.1.0             2.7.13         winget
+Windows Terminal                                                   Microsoft.WindowsTerminal                                                              1.24.12741.0        1.25.2733.0    winget
+Windows Web Experience Pack                                        MSIX\MicrosoftWindows.Client.WebExperience_526.21100.40.0_x64__cw5n1h2txyewy           526.21100.40.0                     
+WindowsAppRuntime.1.2                                              Microsoft.WindowsAppRuntime.1.2                                                        1.2.5                              winget
+WindowsAppRuntime.1.2                                              Microsoft.WindowsAppRuntime.1.2                                                        1.2.5                              winget
+WindowsAppRuntime.1.4                                              Microsoft.WindowsAppRuntime.1.4                                                        1.4.7                              winget
+WindowsAppRuntime.1.4                                              Microsoft.WindowsAppRuntime.1.4                                                        1.4.7                              winget
+WindowsAppRuntime.1.5                                              Microsoft.WindowsAppRuntime.1.5                                                        1.5.9                              winget
+WindowsAppRuntime.1.5                                              Microsoft.WindowsAppRuntime.1.5                                                        1.5.9                              winget
+WindowsAppRuntime.1.6                                              Microsoft.WindowsAppRuntime.1.6                                                        1.6.9                              winget
+WindowsAppRuntime.1.7                                              Microsoft.WindowsAppRuntime.1.7                                                        1.7.9                              winget
+WindowsAppRuntime.1.7                                              Microsoft.WindowsAppRuntime.1.7                                                        1.7.9                              winget
+WindowsAppRuntime.1.8                                              Microsoft.WindowsAppRuntime.1.8                                                        > 1.8.10                           winget
+WindowsAppRuntime.1.8                                              Microsoft.WindowsAppRuntime.1.8                                                        > 1.8.10                           winget
+WindowsAppRuntime.1.8                                              Microsoft.WindowsAppRuntime.1.8                                                        > 1.8.10                           winget
+WindowsAppRuntime.1.8                                              Microsoft.WindowsAppRuntime.1.8                                                        1.8.10                             winget
+WindowsAppRuntime.1.8                                              Microsoft.WindowsAppRuntime.1.8                                                        1.8.9                              winget
+WindowsAppRuntime.1.8                                              Microsoft.WindowsAppRuntime.1.8                                                        1.8.8                              winget
+WindowsAppRuntime.2                                                Microsoft.WindowsAppRuntime.2                                                          2.5.1.0                            winget
+WindowsAppRuntime.2                                                Microsoft.WindowsAppRuntime.2                                                          2.5.1.0                            winget
+WindowsAppRuntime.2                                                Microsoft.WindowsAppRuntime.2                                                          2.4.0.0                            winget
+WindowsAppRuntime.2                                                Microsoft.WindowsAppRuntime.2                                                          2.3.1.0                            winget
+WindowsAppRuntime.2                                                Microsoft.WindowsAppRuntime.2                                                          2.3.0.0                            winget
+WinRAR                                                             MSIX\WinRAR.ShellExtension_1.0.0.2_x64__d9ma7nkbkv4rp                                  1.0.0.2                            
+WinRAR 7.13 (64-bit)                                               RARLab.WinRAR                                                                          7.13.0              7.23.0         winget
+WizTree v4.32                                                      AntibodySoftware.WizTree                                                               4.32                4.33           winget
+Xbox Game Bar Plugin                                               MSIX\Microsoft.XboxGameOverlay_1.54.4001.0_x64__8wekyb3d8bbwe                          1.54.4001.0                        
+Xbox Game Speech Window                                            MSIX\Microsoft.XboxSpeechToTextOverlay_1.21.13002.0_x64__8wekyb3d8bbwe                 1.21.13002.0                       
+Xbox Identity Provider                                             MSIX\Microsoft.XboxIdentityProvider_12.130.16001.0_x64__8wekyb3d8bbwe                  12.130.16001.0                     
+Zoom Workplace                                                     XP99J3KP4XZ4VV                                                                         7.1.9 (48550)                      msstore

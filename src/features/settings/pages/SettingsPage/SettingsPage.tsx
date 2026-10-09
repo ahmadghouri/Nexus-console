@@ -1,6 +1,7 @@
 import { useAppDispatch, useAppSelector } from '@/shared/state/hooks';
 import { setTheme, setLayout, setEnabledModules } from '@/shared/state/settingsSlice';
 import { useEnabledModules } from '@/shared/modules';
+import { usePlatform } from '@/shared/tauri';
 import { SegmentedControl } from '@/shared/ui/SegmentedControl';
 import { FeaturePicker } from '@/features/settings/components/FeaturePicker';
 import { HomebrewStatusCard } from '@/features/settings/components/HomebrewStatusCard';
@@ -9,6 +10,7 @@ import { THEME_OPTIONS, LAYOUT_OPTIONS } from './SettingsPage.config';
 
 export const SettingsPage = () => {
   const dispatch = useAppDispatch();
+  const windows = usePlatform() === 'windows';
   const theme = useAppSelector((s) => s.settings.theme);
   const layout = useAppSelector((s) => s.settings.layout);
   const enabledModules = useEnabledModules();
@@ -17,7 +19,11 @@ export const SettingsPage = () => {
     <div className="flex h-full flex-col">
       <header className="border-b border-border px-6 py-4">
         <h1 className="text-lg font-semibold text-fg">Settings</h1>
-        <p className="text-sm text-fg-muted">Features, theme, Homebrew &amp; managed services</p>
+        <p className="text-sm text-fg-muted">
+          {windows
+            ? 'Features, theme, WinGet & managed services'
+            : 'Features, theme, Homebrew & managed services'}
+        </p>
       </header>
 
       <div className="min-h-0 flex-1 overflow-auto">

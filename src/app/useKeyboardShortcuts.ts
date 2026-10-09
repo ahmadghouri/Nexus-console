@@ -3,10 +3,11 @@ import { useVisibleTabs } from '@/shared/modules';
 import { useAppDispatch } from '@/shared/state/hooks';
 import { setActiveTab } from '@/shared/state/uiSlice';
 
-/** Global macOS-style shortcuts: Cmd+1..N switch tabs in sidebar order, Cmd+,
- * opens Settings (the standard "Preferences" shortcut), Cmd+F focuses the active
- * tab's search/filter input, if it has one (marked `data-nx-page-search`;
- * Sessions/Settings have none, so Cmd+F is a no-op there).
+/** Global shortcuts: Cmd/Ctrl+1..N switch tabs in sidebar order, Cmd/Ctrl+,
+ * opens Settings (the standard "Preferences" shortcut), Cmd/Ctrl+F focuses the
+ * active tab's search/filter input, if it has one (marked `data-nx-page-search`;
+ * Sessions/Settings have none, so the shortcut is a no-op there). Cmd on macOS,
+ * Ctrl on Windows — either modifier is accepted so muscle memory carries over.
  *
  * The numbers are derived from the VISIBLE tabs, so a disabled module never
  * leaves a dead key and the run is always contiguous. */
@@ -20,7 +21,7 @@ export function useKeyboardShortcuts(): void {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!e.metaKey || e.altKey || e.ctrlKey) return;
+      if ((!e.metaKey && !e.ctrlKey) || e.altKey) return;
 
       const tabs = tabsRef.current;
       const nth = Number(e.key);

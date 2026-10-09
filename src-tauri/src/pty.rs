@@ -1,21 +1,26 @@
 use crate::context::AppContext;
 use crate::error::{AppError, AppResult};
-use crate::util::{plist, validate};
+#[cfg(unix)]
+use crate::util::plist;
+use crate::util::validate;
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::os::unix::io::RawFd;
 use std::sync::Mutex;
 use tauri::ipc::Channel;
 use tauri::State;
 
 const MAX_PTYS: usize = 8;
 /// Cap per flushed Output event — bounds both IPC payloads and xterm write calls.
+#[cfg(unix)]
 const MAX_BATCH: usize = 32 * 1024;
 
 /// Zero-timeout poll: is more PTY output already buffered? Zero timeout means
 /// coalescing never ADDS latency — a lone keystroke echo flushes immediately.
-fn readable_now(fd: RawFd) -> bool {
+/// Windows ConPTY doesn't expose a pollable fd through portable-pty; there,
+/// each read flushes as-is (still correct, just one event per read).
+#[cfg(unix)]
+fn readable_now(fd: std::os::unix::io::RawFd) -> bool {
     let mut p = libc::pollfd {
         fd,
         events: libc::POLLIN,
@@ -123,7 +128,8 @@ impl PtyManager {
         // drained (zero-timeout poll) up to MAX_BATCH and flushed as one event —
         // a fast producer (`yes`, big logs) floods neither IPC nor xterm, while
         // interactive echo still flushes per read with no added latency.
-        let master_fd = pair.master.as_raw_fd();
+        #[cfg(unix)]
+        let master_fd = Some(pair.master.as_raw_fd());
         std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
             let mut acc: Vec<u8> = Vec::with_capacity(8192);
@@ -132,6 +138,7 @@ impl PtyManager {
                     Ok(0) => break,
                     Ok(n) => {
                         acc.extend_from_slice(&buf[..n]);
+                        #[cfg(unix)]
                         while acc.len() < MAX_BATCH && master_fd.is_some_and(readable_now) {
                             match reader.read(&mut buf) {
                                 Ok(n2) if n2 > 0 => acc.extend_from_slice(&buf[..n2]),
@@ -212,12 +219,27 @@ impl PtyManager {
 
 /// PTY children are session/group leaders, so signal the whole process group —
 /// this also kills anything launched inside the shell (node, docker, …).
+#[cfg(unix)]
 fn kill_group(child: &mut Box<dyn Child + Send + Sync>) {
     if let Some(pid) = child.process_id() {
         // Negative pid = process group. SAFETY: kill(2) with a constant signal.
         unsafe {
             libc::kill(-(pid as i32), libc::SIGHUP);
         }
+    }
+    let _ = child.kill();
+}
+
+/// Windows has no process groups in the POSIX sense — `taskkill /T` walks and
+/// kills the child tree, which is the equivalent guarantee.
+#[cfg(windows)]
+fn kill_group(child: &mut Box<dyn Child + Send + Sync>) {
+    if let Some(pid) = child.process_id() {
+        let _ = std::process::Command::new("taskkill")
+            .args(["/T", "/F", "/PID", &pid.to_string()])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
     }
     let _ = child.kill();
 }
@@ -231,6 +253,7 @@ fn lock(
 
 /// Server-side allowlist — JS passes a formula + kind, never a program. Resolves
 /// the client binary (or a login shell) / the `tail -f` log command.
+#[cfg(unix)]
 fn resolve_command(
     formula: &str,
     kind: &str,
@@ -271,6 +294,98 @@ fn resolve_command(
     }
 }
 
+/// Windows twin: client binaries come from PATH (winget puts them there); log
+/// paths aren't uniform on Windows (Event Log, per-service files), so "logs"
+/// degrades to a plain shell rather than guessing a wrong file. The `shell`
+/// argument is the user's pick from the terminal drawer's "+" menu
+/// (auto/pwsh/powershell5/cmd) — an allowlisted choice, never a program path.
+#[cfg(windows)]
+fn resolve_command(
+    formula: &str,
+    kind: &str,
+    shell: &str,
+    _ctx: &AppContext,
+) -> AppResult<(String, Vec<String>)> {
+    validate::validate_formula(formula)?;
+    let formula = validate::bare_formula(formula);
+
+    // The synthetic "shell" formula = a bare interactive shell (the "+" menu).
+    if formula != "shell" && kind != "logs" {
+        let client: Option<(&str, Vec<String>)> = match base_for(formula) {
+            "redis" | "valkey" => Some(("redis-cli", vec![])),
+            "postgresql" | "postgres" => Some(("psql", vec!["-d".into(), "postgres".into()])),
+            "mysql" | "mariadb" | "percona-server" => Some(("mysql", vec![])),
+            "mongodb" | "mongodb-community" => Some(("mongosh", vec![])),
+            _ => None,
+        };
+        if let Some((name, args)) = client {
+            if let Some(found) = find_on_path(name) {
+                return Ok((found, args));
+            }
+        }
+    }
+    windows_shell(shell)
+}
+
+/// Base name without tap or @version (`mongodb-community@7.0` → `mongodb-community`).
+fn base_for(formula: &str) -> &str {
+    formula.split('@').next().unwrap_or(formula)
+}
+
+/// PowerShell/CMD picker — resolves an allowlisted shell id to a concrete
+/// program+args. Never takes a path from the frontend.
+#[cfg(windows)]
+fn windows_shell(shell: &str) -> AppResult<(String, Vec<String>)> {
+    let system32 = |name: &str| {
+        format!(
+            "{}\\System32\\{name}",
+            std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into())
+        )
+    };
+    match shell {
+        // Default: PowerShell 7 (pwsh) when installed, else Windows PowerShell.
+        "auto" => {
+            let program = find_on_path("pwsh")
+                .unwrap_or_else(|| system32("WindowsPowerShell\\v1.0\\powershell.exe"));
+            Ok((program, vec!["-NoLogo".into()]))
+        }
+        "pwsh" => find_on_path("pwsh")
+            .map(|p| (p, vec!["-NoLogo".into()]))
+            .ok_or_else(|| {
+                AppError::NotFound(
+                    "PowerShell 7 (pwsh) isn't installed — use Windows PowerShell or Command \
+                     Prompt"
+                        .into(),
+                )
+            }),
+        "powershell5" => Ok((
+            system32("WindowsPowerShell\\v1.0\\powershell.exe"),
+            vec!["-NoLogo".into()],
+        )),
+        "cmd" => Ok((system32("cmd.exe"), vec![])),
+        other => Err(AppError::InvalidName(format!("unknown shell: {other}"))),
+    }
+}
+
+/// Locate `name.exe`/`name.cmd`/`name.bat` on PATH.
+#[cfg(windows)]
+fn find_on_path(name: &str) -> Option<String> {
+    let path = std::env::var("PATH").ok()?;
+    let exts = [".exe", ".cmd", ".bat", ""];
+    for dir in path.split(';') {
+        if dir.trim().is_empty() {
+            continue;
+        }
+        for ext in exts {
+            let candidate = std::path::Path::new(dir).join(format!("{name}{ext}"));
+            if candidate.is_file() {
+                return Some(candidate.display().to_string());
+            }
+        }
+    }
+    None
+}
+
 // All four are `async` so Tauri runs them off the main thread — a sync command
 // runs ON the main thread, so an openpty/spawn or a write into a full PTY buffer
 // would stall the UI (same pattern as the brew commands in commands/).
@@ -280,12 +395,16 @@ pub async fn pty_open(
     id: String,
     formula: String,
     kind: String,
+    shell: String,
     cols: u16,
     rows: u16,
     on_event: Channel<PtyEvent>,
     ctx: State<'_, AppContext>,
     mgr: State<'_, PtyManager>,
 ) -> AppResult<()> {
+    #[cfg(windows)]
+    let (program, args) = resolve_command(&formula, &kind, &shell, &ctx)?;
+    #[cfg(unix)]
     let (program, args) = resolve_command(&formula, &kind, &ctx)?;
     mgr.open(id, program, args, cols, rows, on_event)
 }
@@ -333,6 +452,7 @@ mod tests {
     }
 
     // Proof that portable-pty spawns + streams on this machine. Ignored in CI.
+    #[cfg(unix)]
     #[test]
     #[ignore]
     fn pty_spawns_and_reads() {
@@ -354,5 +474,51 @@ mod tests {
         let out = String::from_utf8_lossy(&buf[..n]).into_owned();
         let _ = child.wait();
         assert!(out.contains("nexus-pty-ok"), "got: {out:?}");
+    }
+
+    /// Windows ConPTY twin: spawn cmd.exe through the pty and read it back.
+    /// conhost probes the terminal with a DSR cursor query (ESC[6n) before
+    /// yielding payload — we must answer it, exactly as xterm.js does in the
+    /// real app, or conhost stalls the session.
+    #[cfg(windows)]
+    #[test]
+    #[ignore]
+    fn pty_spawns_and_reads() {
+        use std::io::{Read, Write};
+        let pair = native_pty_system()
+            .openpty(PtySize {
+                rows: 24,
+                cols: 80,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .unwrap();
+        let mut cmd = CommandBuilder::new("cmd.exe");
+        cmd.args(["/C", "echo nexus-pty-ok"]);
+        let mut child = pair.slave.spawn_command(cmd).unwrap();
+        drop(pair.slave);
+        let mut reader = pair.master.try_clone_reader().unwrap();
+        let mut writer = pair.master.take_writer().unwrap();
+        let mut out = Vec::new();
+        let start = std::time::Instant::now();
+        while start.elapsed() < std::time::Duration::from_secs(5)
+            && !String::from_utf8_lossy(&out).contains("nexus-pty-ok")
+        {
+            let mut buf = [0u8; 512];
+            match reader.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    out.extend_from_slice(&buf[..n]);
+                    if out.ends_with(&[0x1b, b'[', b'6', b'n']) {
+                        let _ = writer.write_all(b"\x1b[1;1R");
+                        let _ = writer.flush();
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+        let text = String::from_utf8_lossy(&out).into_owned();
+        let _ = child.kill();
+        assert!(text.contains("nexus-pty-ok"), "got: {text:?}");
     }
 }

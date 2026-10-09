@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { MoreVertical, RotateCw, Package, Check, Trash2, ListX } from 'lucide-react';
+import { MoreVertical, RotateCw, Package, Check, Trash2, ListX, ArrowUpCircle } from 'lucide-react';
 import { useFormulaVersions, useRestartService, useInstallFormula } from '@/shared/brew';
+import { useUpgradePackage } from '@/features/packages/api/packageMutations';
+import { usePlatform } from '@/shared/tauri';
 import { useAppDispatch } from '@/shared/state/hooks';
 import { removeManaged, renameManaged } from '@/shared/state/serviceIntentSlice';
 import { markUserStop } from '@/shared/lib/userStops';
@@ -22,10 +24,12 @@ export const ServiceMenu = ({ service }: { service: ReconciledService }) => {
   const [prime, setPrime] = useState(false);
   const [uninstallOpen, setUninstallOpen] = useState(false);
   const dispatch = useAppDispatch();
+  const windows = usePlatform() === 'windows';
   const restart = useRestartService();
   const install = useInstallFormula();
+  const upgrade = useUpgradePackage();
 
-  const installed = service.status !== 'notInstalled';
+  const installed = service.installed;
   const isRunning = service.status === 'running' || service.status === 'starting';
   const linked = service.linkState === 'linked';
   const base = bareFormula(service.formula).split('@')[0];
@@ -52,6 +56,16 @@ export const ServiceMenu = ({ service }: { service: ReconciledService }) => {
             sideOffset={4}
             className="nx-pop z-[var(--z-dropdown)] min-w-60 rounded-lg border border-border bg-paper p-1 shadow-md"
           >
+            {service.updateAvailable && (
+              <DropdownMenu.Item
+                className={`${itemCls} text-fg`}
+                onSelect={() => upgrade.mutate({ name: service.formula })}
+              >
+                <ArrowUpCircle className="h-4 w-4" />
+                Upgrade to {service.latestVersion}
+              </DropdownMenu.Item>
+            )}
+
             {isRunning && (
               <DropdownMenu.Item
                 className={`${itemCls} text-fg`}
@@ -101,10 +115,13 @@ export const ServiceMenu = ({ service }: { service: ReconciledService }) => {
             {/* Homebrew only ships @version formulae where its maintainers made
                 them (redis@6.2, postgresql@18) — nginx and most others have
                 exactly one. Say that, instead of leaving a lone row that reads
-                like the list failed to load. */}
+                like the list failed to load. WinGet installs by exact package
+                id, so it always lands here — same explanation, winget framing. */}
             {versions.data?.length === 1 && (
               <p className="px-2.5 pt-0.5 pb-1 text-xs text-fg-subtle">
-                Homebrew has no other version of this formula.
+                {windows
+                  ? 'WinGet installs this exact package id — no version variants.'
+                  : 'Homebrew has no other version of this formula.'}
               </p>
             )}
 

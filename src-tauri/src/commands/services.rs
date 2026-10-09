@@ -1,13 +1,25 @@
+#[cfg(unix)]
 use crate::brew::{brew_error, run_brew, BrewLock, BREW_BUSY_MSG};
 use crate::context::AppContext;
-use crate::error::{AppError, AppResult};
+#[cfg(unix)]
+use crate::error::AppError;
+use crate::error::AppResult;
+use crate::session::SessionServices;
+#[cfg(unix)]
 use crate::util::{launchctl, lsof, ps, validate};
+#[cfg(unix)]
 use std::collections::HashMap;
+#[cfg(unix)]
 use std::process::Command;
+#[cfg(unix)]
 use std::sync::Mutex;
+#[cfg(unix)]
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager, State};
+#[cfg(unix)]
+use tauri::Manager;
+use tauri::{AppHandle, State};
 
+#[cfg(unix)]
 #[derive(Debug, Clone, serde::Deserialize)]
 struct BrewEntry {
     name: String,
@@ -15,8 +27,10 @@ struct BrewEntry {
     file: Option<String>,
 }
 
+#[cfg(unix)]
 const SERVICES_CACHE_TTL: Duration = Duration::from_secs(60);
 
+#[cfg(unix)]
 struct CachedList {
     entries: Vec<BrewEntry>,
     pid_map: HashMap<String, u32>,
@@ -28,10 +42,13 @@ struct CachedList {
 /// CPU cost in the app. Reused while the launchctl pid map is unchanged (no
 /// service started/stopped/crashed) and the TTL hasn't expired; explicitly
 /// invalidated by every write command (covers installed/uninstalled formulas,
-/// which don't move any pid).
+/// which don't move any pid). Windows doesn't use it — SCM enumeration is
+/// milliseconds — but the type stays cross-platform so `trust_tap` compiles.
+#[cfg(unix)]
 #[derive(Default)]
 pub struct ServicesCache(Mutex<Option<CachedList>>);
 
+#[cfg(unix)]
 impl ServicesCache {
     pub fn invalidate(&self) {
         if let Ok(mut guard) = self.0.lock() {
@@ -40,11 +57,14 @@ impl ServicesCache {
     }
 }
 
+#[cfg(unix)]
 fn cache_is_fresh(cached: &CachedList, pids: &HashMap<String, u32>) -> bool {
     cached.pid_map == *pids && cached.fetched_at.elapsed() < SERVICES_CACHE_TTL
 }
 
 /// Flat, Option-typed view of one brew service. Mirrored by the zod schema in JS.
+/// The last three fields are Windows-only (SCM metadata) and skipped from the
+/// macOS payload, so the contract here stays byte-identical across platforms.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceDto {
@@ -57,6 +77,12 @@ pub struct ServiceDto {
     pub port: Option<u16>,
     pub healthy: Option<bool>,
     pub plist: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub noteworthy: Option<bool>,
 }
 
 /// Status + pid always; cpu/mem/health only when `with_stats` (skipped off the
@@ -69,21 +95,30 @@ pub async fn list_services(
     with_stats: bool,
     app: AppHandle,
 ) -> AppResult<Vec<ServiceDto>> {
-    let brew_bin = ctx
-        .brew_bin
-        .as_ref()
-        .ok_or_else(|| AppError::NotFound("Homebrew not found".into()))?
-        .clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let cache = app.state::<ServicesCache>();
-        let lock = app.state::<BrewLock>();
-        collect_services(&cache, &lock, &brew_bin, with_stats)
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = (ctx, app);
+        crate::commands::winops::list_services(with_stats).await
+    }
+    #[cfg(unix)]
+    {
+        let brew_bin = ctx
+            .brew_bin
+            .as_ref()
+            .ok_or_else(|| AppError::NotFound("Homebrew not found".into()))?
+            .clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            let cache = app.state::<ServicesCache>();
+            let lock = app.state::<BrewLock>();
+            collect_services(&cache, &lock, &brew_bin, with_stats)
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 /// Testable core (no Tauri State) — see `discovers_local_services`.
+#[cfg(unix)]
 fn collect_services(
     cache: &ServicesCache,
     lock: &BrewLock,
@@ -125,6 +160,9 @@ fn collect_services(
                 plist: e.file,
                 name: e.name,
                 status: e.status,
+                display_name: None,
+                start_type: None,
+                noteworthy: None,
             }
         })
         .collect();
@@ -133,12 +171,14 @@ fn collect_services(
 
 /// Last known list at any age — the fallback when brew is busy and we refuse to
 /// start a competing process.
+#[cfg(unix)]
 fn last_known(cache: &ServicesCache) -> Option<Vec<BrewEntry>> {
     cache.0.lock().ok()?.as_ref().map(|c| c.entries.clone())
 }
 
 /// Returns cached entries when the pid map is unchanged and the TTL hasn't
 /// expired; otherwise re-runs `brew services list --json` and refreshes the cache.
+#[cfg(unix)]
 fn fetch_services_list(
     cache: &ServicesCache,
     lock: &BrewLock,
@@ -196,6 +236,7 @@ fn fetch_services_list(
     Ok(entries)
 }
 
+#[cfg(unix)]
 fn run_launchctl() -> String {
     Command::new("launchctl")
         .arg("list")
@@ -204,6 +245,7 @@ fn run_launchctl() -> String {
         .unwrap_or_default()
 }
 
+#[cfg(unix)]
 fn run_ps(ids: &[String]) -> String {
     Command::new("ps")
         .args(["-o", "pid=,%cpu=,rss=,etime=", "-p", &ids.join(",")])
@@ -212,6 +254,7 @@ fn run_ps(ids: &[String]) -> String {
         .unwrap_or_default()
 }
 
+#[cfg(unix)]
 fn run_lsof(ids: &[String]) -> String {
     Command::new("lsof")
         .args(["-nP", "-iTCP", "-sTCP:LISTEN", "-a", "-p", &ids.join(",")])
@@ -222,21 +265,19 @@ fn run_lsof(ids: &[String]) -> String {
 
 // ---- Write path (P3) -------------------------------------------------------
 
-use crate::session::SessionServices;
-
-fn brew_bin<'a>(ctx: &'a State<'_, AppContext>) -> AppResult<&'a str> {
-    ctx.brew_bin
-        .as_deref()
-        .ok_or_else(|| AppError::NotFound("Homebrew not found".into()))
-}
-
-/// Track whether this service is app-started-ephemeral (stopped on quit) or not.
-fn record_intent(session: &SessionServices, name: &str, linked: bool) {
+pub(crate) fn record_intent(session: &SessionServices, name: &str, linked: bool) {
     if linked {
         session.unmark(name); // registered → persists → never our quit-stop
     } else {
         session.mark_ephemeral(name);
     }
+}
+
+#[cfg(unix)]
+fn brew_bin<'a>(ctx: &'a State<'_, AppContext>) -> AppResult<&'a str> {
+    ctx.brew_bin
+        .as_deref()
+        .ok_or_else(|| AppError::NotFound("Homebrew not found".into()))
 }
 
 /// linked → `brew services start` (launchd-registered, persists); unlinked →
@@ -254,30 +295,38 @@ pub async fn start_service(
     ctx: State<'_, AppContext>,
     app: AppHandle,
 ) -> AppResult<()> {
-    validate::validate_formula(&name)?;
-    let bin = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let lock = app.state::<BrewLock>();
-        let _g = lock
-            .0
-            .lock()
-            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
-        let action = if linked { "start" } else { "run" };
-        // A wedged launchd label (bootstrapped-but-not-running) makes `brew
-        // services start` fail with EIO 5 ("Bootstrap failed: 5"). brew's list
-        // still reports it "stopped", so the UI only ever shows Start and never
-        // a Stop to clear it — a deadlock. Bootout + retry once so Start
-        // self-heals. ponytail: retry only on the failure path (happy path stays fast).
-        if run_brew(&bin, &["services", action, &name]).is_err() {
-            let _ = run_brew(&bin, &["services", "stop", &name]);
-            run_brew(&bin, &["services", action, &name])?;
-        }
-        record_intent(&app.state::<SessionServices>(), &name, linked);
-        app.state::<ServicesCache>().invalidate();
-        Ok(())
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = ctx;
+        crate::commands::winops::start_service(name, linked, app).await
+    }
+    #[cfg(unix)]
+    {
+        validate::validate_formula(&name)?;
+        let bin = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let lock = app.state::<BrewLock>();
+            let _g = lock
+                .0
+                .lock()
+                .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+            let action = if linked { "start" } else { "run" };
+            // A wedged launchd label (bootstrapped-but-not-running) makes `brew
+            // services start` fail with EIO 5 ("Bootstrap failed: 5"). brew's list
+            // still reports it "stopped", so the UI only ever shows Start and never
+            // a Stop to clear it — a deadlock. Bootout + retry once so Start
+            // self-heals. ponytail: retry only on the failure path (happy path stays fast).
+            if run_brew(&bin, &["services", action, &name]).is_err() {
+                let _ = run_brew(&bin, &["services", "stop", &name]);
+                run_brew(&bin, &["services", action, &name])?;
+            }
+            record_intent(&app.state::<SessionServices>(), &name, linked);
+            app.state::<ServicesCache>().invalidate();
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 #[tauri::command]
@@ -286,21 +335,29 @@ pub async fn stop_service(
     ctx: State<'_, AppContext>,
     app: AppHandle,
 ) -> AppResult<()> {
-    validate::validate_formula(&name)?;
-    let bin = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let lock = app.state::<BrewLock>();
-        let _g = lock
-            .0
-            .lock()
-            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
-        run_brew(&bin, &["services", "stop", &name])?;
-        app.state::<SessionServices>().unmark(&name); // no longer running — nothing to quit-stop
-        app.state::<ServicesCache>().invalidate();
-        Ok(())
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = ctx;
+        crate::commands::winops::stop_service(name, app).await
+    }
+    #[cfg(unix)]
+    {
+        validate::validate_formula(&name)?;
+        let bin = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let lock = app.state::<BrewLock>();
+            let _g = lock
+                .0
+                .lock()
+                .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+            run_brew(&bin, &["services", "stop", &name])?;
+            app.state::<SessionServices>().unmark(&name); // no longer running — nothing to quit-stop
+            app.state::<ServicesCache>().invalidate();
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 #[tauri::command]
@@ -310,23 +367,31 @@ pub async fn restart_service(
     ctx: State<'_, AppContext>,
     app: AppHandle,
 ) -> AppResult<()> {
-    validate::validate_formula(&name)?;
-    let bin = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let lock = app.state::<BrewLock>();
-        let _g = lock
-            .0
-            .lock()
-            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
-        run_brew(&bin, &["services", "stop", &name])?;
-        let action = if linked { "start" } else { "run" };
-        run_brew(&bin, &["services", action, &name])?;
-        record_intent(&app.state::<SessionServices>(), &name, linked);
-        app.state::<ServicesCache>().invalidate();
-        Ok(())
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = ctx;
+        crate::commands::winops::restart_service(name, linked, app).await
+    }
+    #[cfg(unix)]
+    {
+        validate::validate_formula(&name)?;
+        let bin = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let lock = app.state::<BrewLock>();
+            let _g = lock
+                .0
+                .lock()
+                .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+            run_brew(&bin, &["services", "stop", &name])?;
+            let action = if linked { "start" } else { "run" };
+            run_brew(&bin, &["services", action, &name])?;
+            record_intent(&app.state::<SessionServices>(), &name, linked);
+            app.state::<ServicesCache>().invalidate();
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 /// Migrate a RUNNING service between start (registered) and run (ephemeral).
@@ -337,29 +402,38 @@ pub async fn set_link_intent(
     ctx: State<'_, AppContext>,
     app: AppHandle,
 ) -> AppResult<()> {
-    validate::validate_formula(&name)?;
-    let bin = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let lock = app.state::<BrewLock>();
-        let _g = lock
-            .0
-            .lock()
-            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
-        run_brew(&bin, &["services", "stop", &name])?;
-        let action = if linked { "start" } else { "run" };
-        run_brew(&bin, &["services", action, &name])?;
-        record_intent(&app.state::<SessionServices>(), &name, linked);
-        app.state::<ServicesCache>().invalidate();
-        Ok(())
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = ctx;
+        crate::commands::winops::set_link_intent(name, linked, app).await
+    }
+    #[cfg(unix)]
+    {
+        validate::validate_formula(&name)?;
+        let bin = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let lock = app.state::<BrewLock>();
+            let _g = lock
+                .0
+                .lock()
+                .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+            run_brew(&bin, &["services", "stop", &name])?;
+            let action = if linked { "start" } else { "run" };
+            run_brew(&bin, &["services", action, &name])?;
+            record_intent(&app.state::<SessionServices>(), &name, linked);
+            app.state::<ServicesCache>().invalidate();
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 /// `name` when brew actually ships it, otherwise the closest thing it does ship
 /// (`elasticsearch` → `elastic/tap/elasticsearch-full`, `mongodb-community@7.0`
 /// → `mongodb/brew/mongodb-community@7.0`). Falls back to `name` when the search
 /// finds nothing, so the user sees brew's own error rather than ours.
+#[cfg(unix)]
 fn resolve_installable(brew_bin: &str, name: &str) -> AppResult<String> {
     let base = validate::bare_formula(name.split('@').next().unwrap_or(name));
     let candidates = pick_versions(&run_brew(brew_bin, &["search", base])?, base);
@@ -380,49 +454,66 @@ pub async fn install_formula(
     ctx: State<'_, AppContext>,
     app: AppHandle,
 ) -> AppResult<String> {
-    validate::validate_formula(&name)?;
-    let bin = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let lock = app.state::<BrewLock>();
-        let _g = lock
-            .0
-            .lock()
-            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
-        let target = resolve_installable(&bin, &name)?;
-        run_brew(&bin, &["install", &target])?;
-        app.state::<ServicesCache>().invalidate();
-        Ok(target)
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = (&ctx, app);
+        crate::commands::winops::install_formula(name).await
+    }
+    #[cfg(unix)]
+    {
+        validate::validate_formula(&name)?;
+        let bin = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let lock = app.state::<BrewLock>();
+            let _g = lock
+                .0
+                .lock()
+                .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+            let target = resolve_installable(&bin, &name)?;
+            run_brew(&bin, &["install", &target])?;
+            app.state::<ServicesCache>().invalidate();
+            Ok(target)
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 /// `brew search <query>` → formula/cask names (headers stripped).
 #[tauri::command]
 pub async fn search_formulae(query: String, ctx: State<'_, AppContext>) -> AppResult<Vec<String>> {
-    if query.is_empty() || query.len() > 64 {
-        return Err(AppError::InvalidName("invalid search query".into()));
+    #[cfg(windows)]
+    {
+        let _ = ctx;
+        crate::commands::winops::search_formulae(query).await
     }
-    // `brew search` is a slow (cold: multi-second) subprocess. Run it off the
-    // main thread so a sync command can't freeze the UI while it runs.
-    let brew = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let out = run_brew(&brew, &["search", &query])?;
-        Ok(out
-            .lines()
-            .map(str::trim)
-            .filter(|l| !l.is_empty() && !l.starts_with("==>"))
-            .map(String::from)
-            .collect::<Vec<String>>())
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(unix)]
+    {
+        if query.is_empty() || query.len() > 64 {
+            return Err(AppError::InvalidName("invalid search query".into()));
+        }
+        // `brew search` is a slow (cold: multi-second) subprocess. Run it off the
+        // main thread so a sync command can't freeze the UI while it runs.
+        let brew = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let out = run_brew(&brew, &["search", &query])?;
+            Ok(out
+                .lines()
+                .map(str::trim)
+                .filter(|l| !l.is_empty() && !l.starts_with("==>"))
+                .map(String::from)
+                .collect::<Vec<String>>())
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 /// `brew search <base>` output → the installable candidates for that service:
 /// the base itself and its `@version` variants, base first. Names stay exactly
 /// as brew printed them (tap-qualified where it is), since that's what
 /// `brew install` needs back.
+#[cfg(unix)]
 fn pick_versions(search_out: &str, base: &str) -> Vec<String> {
     let prefix = format!("{base}@");
     let pick = |keep: &dyn Fn(&str) -> bool| -> Vec<String> {
@@ -452,20 +543,28 @@ fn pick_versions(search_out: &str, base: &str) -> Vec<String> {
 /// (e.g. redis → [redis, redis@8.2, redis@6.2]).
 #[tauri::command]
 pub async fn formula_versions(name: String, ctx: State<'_, AppContext>) -> AppResult<Vec<String>> {
-    validate::validate_formula(&name)?;
-    // `brew search` is a slow (cold: multi-second) subprocess. Run it off the
-    // main thread so opening the ⋯ menu never freezes the UI (the first-open lag).
-    let brew = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        // Search by the bare name — `brew search mongodb/brew/x` matches only that
-        // one formula, while the bare query lists every @version (tap-qualified,
-        // which is exactly what install needs back).
-        let base = validate::bare_formula(name.split('@').next().unwrap_or(&name)).to_string();
-        let out = run_brew(&brew, &["search", &base])?;
-        Ok(pick_versions(&out, &base))
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = ctx;
+        crate::commands::winops::formula_versions(name).await
+    }
+    #[cfg(unix)]
+    {
+        validate::validate_formula(&name)?;
+        // `brew search` is a slow (cold: multi-second) subprocess. Run it off the
+        // main thread so opening the ⋯ menu never freezes the UI (the first-open lag).
+        let brew = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            // Search by the bare name — `brew search mongodb/brew/x` matches only that
+            // one formula, while the bare query lists every @version (tap-qualified,
+            // which is exactly what install needs back).
+            let base = validate::bare_formula(name.split('@').next().unwrap_or(&name)).to_string();
+            let out = run_brew(&brew, &["search", &base])?;
+            Ok(pick_versions(&out, &base))
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
 #[tauri::command]
@@ -475,27 +574,36 @@ pub async fn uninstall_formula(
     ctx: State<'_, AppContext>,
     app: AppHandle,
 ) -> AppResult<()> {
-    validate::validate_formula(&name)?;
-    let bin = brew_bin(&ctx)?.to_string();
-    tauri::async_runtime::spawn_blocking(move || {
-        let lock = app.state::<BrewLock>();
-        let _g = lock
-            .0
-            .lock()
-            .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
-        let mut args = vec!["uninstall"];
-        if ignore_dependents {
-            args.push("--ignore-dependencies");
-        }
-        args.push(&name);
-        run_brew(&bin, &args)?;
-        app.state::<ServicesCache>().invalidate();
-        Ok(())
-    })
-    .await
-    .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    #[cfg(windows)]
+    {
+        let _ = (&ctx, app);
+        crate::commands::winops::uninstall_formula(name, ignore_dependents).await
+    }
+    #[cfg(unix)]
+    {
+        validate::validate_formula(&name)?;
+        let bin = brew_bin(&ctx)?.to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let lock = app.state::<BrewLock>();
+            let _g = lock
+                .0
+                .lock()
+                .map_err(|_| AppError::Io("brew lock poisoned".into()))?;
+            let mut args = vec!["uninstall"];
+            if ignore_dependents {
+                args.push("--ignore-dependencies");
+            }
+            args.push(&name);
+            run_brew(&bin, &args)?;
+            app.state::<ServicesCache>().invalidate();
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::Shell(format!("brew task failed: {e}")))?
+    }
 }
 
+#[cfg(unix)]
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -607,6 +715,7 @@ mod tests {
 
     // Full orchestration against real brew on this Mac. Ignored in CI.
     // Run with: cargo test -- --ignored
+    #[cfg(unix)]
     #[test]
     #[ignore]
     fn discovers_local_services() {

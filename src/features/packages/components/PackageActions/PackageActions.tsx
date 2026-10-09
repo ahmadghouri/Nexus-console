@@ -3,6 +3,7 @@ import { MoreVertical, Info, PlusCircle, Trash2 } from 'lucide-react';
 import { useAppDispatch } from '@/shared/state/hooks';
 import { addManaged } from '@/shared/state/serviceIntentSlice';
 import { formulaDisplayName } from '@/shared/lib/format';
+import { usePlatform } from '@/shared/tauri';
 import type { PackageDto } from '@/features/packages/api/packages.schema';
 
 const itemCls =
@@ -17,6 +18,11 @@ interface Props {
 
 export const PackageActions = ({ pkg, isServiceCapable, onInfo, onUninstall }: Props) => {
   const dispatch = useAppDispatch();
+  // winget's `cask` rows are ARP/MSIX inventory — display-only (ids with a
+  // backslash fail validate_package_id, source-less ids aren't in winget's
+  // sources), so Uninstall is never offered for them on Windows. macOS casks
+  // are real `brew uninstall --cask` targets and keep the item.
+  const canUninstall = !(usePlatform() === 'windows' && pkg.kind === 'cask');
 
   return (
     <DropdownMenu.Root modal={false}>
@@ -44,7 +50,10 @@ export const PackageActions = ({ pkg, isServiceCapable, onInfo, onUninstall }: P
               className={`${itemCls} text-fg`}
               onSelect={() =>
                 dispatch(
-                  addManaged({ formula: pkg.name, displayName: formulaDisplayName(pkg.name) }),
+                  addManaged({
+                    formula: pkg.name,
+                    displayName: pkg.displayName ?? formulaDisplayName(pkg.name),
+                  }),
                 )
               }
             >
@@ -52,10 +61,12 @@ export const PackageActions = ({ pkg, isServiceCapable, onInfo, onUninstall }: P
               Add to Services
             </DropdownMenu.Item>
           )}
-          <DropdownMenu.Item className={`${itemCls} text-danger`} onSelect={onUninstall}>
-            <Trash2 className="h-4 w-4" />
-            Uninstall
-          </DropdownMenu.Item>
+          {canUninstall && (
+            <DropdownMenu.Item className={`${itemCls} text-danger`} onSelect={onUninstall}>
+              <Trash2 className="h-4 w-4" />
+              Uninstall
+            </DropdownMenu.Item>
+          )}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

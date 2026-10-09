@@ -126,10 +126,25 @@ is on (Babel plugin) — don't hand-add `useMemo`/`useCallback` for memoization 
 Vitest runs in a **node** environment (no jsdom) — tests cover pure logic: schemas, reconcile,
 formatters, power-state, report helpers. Rust logic lives in `#[cfg(test)] mod tests` next to the
 code, with real command output captured in `fixtures/` for the parsers (`lsof`, `ps`, `launchctl`,
-`brew`). Tests that hit real brew are `#[ignore]`d.
+`brew`). Tests that hit real brew are `#[ignore]`d. `fixtures/winget-*.txt` is the captured real
+`winget` output the Windows parsers test against.
+
+## Windows
+
+Nexus Console is also a Windows app: SCM services + winget packages + IP Helper ports + ConPTY
+terminal + Windows Doctor probes, all behind the **same IPC contract** (Windows-only DTO fields are
+additive + `skip_serializing_if`'d, `.optional()` in zod — the macOS payload is byte-identical).
+Each unix command twin for Windows lives in `src-tauri/src/commands/winops.rs`
+(`#[cfg(windows)]`, tail-expression, never `return X.await;`), and every subprocess spawn uses
+`crate::util::command(program)` (CREATE_NO_WINDOW on Windows). `noteworthy` SCM rows seed the
+Services tab; winget-id ↔ SCM-name matching uses the ≥4-char dot-segment rule in both `winops.rs`
+and `shared/brew/reconcile.ts`. Frontend strings switch on `usePlatform()` from `@/shared/tauri`.
+Deep scan, browser probes, Time Machine/Low Power probes, and Homebrew self-update stay
+macOS-only (UI hides them). See `docs/windows.md` for the full platform map.
 
 ## Reference docs
 
 `PRODUCT.md` (design principles / anti-references — the bar for any UI change), `PLAN.md`
 (performance & native-feel phases, gitignored), `docs/doctor/PLAN.md` + `SESSION-CONTEXT.md`
-(the Doctor phase plan and the measured findings + wrong turns it was built from).
+(the Doctor phase plan and the measured findings + wrong turns it was built from),
+`docs/windows.md` (the Windows platform map).

@@ -373,6 +373,9 @@ mod tests {
 
     // Real machine, read-only: every probe returns at most one finding and
     // never panics (LPM may return zero on Macs without the setting).
+    // unix-only: these probes shell out to pmset/sysctl/tmutil/launchctl, which
+    // don't exist on Windows — the Windows twins are tested in windows.rs.
+    #[cfg(unix)]
     #[test]
     fn probes_run_on_real_machine() {
         assert!(run_low_power().len() <= 1);

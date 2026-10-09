@@ -48,6 +48,7 @@ export const XtermView = ({
         id: session.id,
         formula: session.formula,
         kind: session.kind,
+        shell: session.shell,
         cols: term.cols,
         rows: term.rows,
       },
@@ -62,7 +63,7 @@ export const XtermView = ({
       void killPty(session.id);
       term.dispose();
     };
-  }, [session.id, session.formula, session.kind]);
+  }, [session.id, session.formula, session.kind, session.shell]);
 
   // Fit + tell the PTY the new size whenever this terminal is shown or resized.
   // rAF-coalesced (live window drags fire many resize events per frame) and the
